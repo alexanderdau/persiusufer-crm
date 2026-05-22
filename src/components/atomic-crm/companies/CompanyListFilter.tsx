@@ -1,21 +1,21 @@
-import { Building, Truck, Users } from "lucide-react";
+import { MapPin, Truck, Users } from "lucide-react";
 import { FilterLiveForm, useGetIdentity, useTranslate } from "ra-core";
 import { ToggleFilterButton } from "@/components/admin/toggle-filter-button";
 import { SearchInput } from "@/components/admin/search-input";
 
 import { FilterCategory } from "../filters/FilterCategory";
 import { useConfigurationContext } from "../root/ConfigurationContext";
-import { getTranslatedCompanySizeLabel } from "./getTranslatedCompanySizeLabel";
-import { sizes } from "./sizes";
+
+import { states } from "./states";
 
 export const CompanyListFilter = () => {
   const { identity } = useGetIdentity();
   const { companySectors } = useConfigurationContext();
   const translate = useTranslate();
-  const translatedSizes = sizes.map((size) => ({
-    ...size,
-    name: getTranslatedCompanySizeLabel(size, translate),
-  }));
+
+
+
+
   return (
     <div className="w-52 min-w-52 flex flex-col gap-8">
       <FilterLiveForm>
@@ -23,15 +23,15 @@ export const CompanyListFilter = () => {
       </FilterLiveForm>
 
       <FilterCategory
-        icon={<Building className="h-4 w-4" />}
-        label="resources.companies.fields.size"
+        icon={<MapPin className="h-4 w-4" />}
+        label="Bundesland"
       >
-        {translatedSizes.map((size) => (
+        {states.map((state) => (
           <ToggleFilterButton
             className="w-full justify-between"
-            label={size.name}
-            key={size.name}
-            value={{ size: size.id }}
+            label={state.name}
+            key={state.id}
+            value={{ state_abbr: state.id }}
           />
         ))}
       </FilterCategory>
