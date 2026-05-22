@@ -1,4 +1,4 @@
-TEST123import React from "react";
+import React from "react";
 import { Gavel } from "lucide-react";
 import type { Identifier, RaRecord } from "ra-core";
 
