@@ -26,6 +26,7 @@ const getBaseDataProvider = () =>
     apiKey: import.meta.env.VITE_SB_PUBLISHABLE_KEY,
     supabaseClient: getSupabaseClient(),
     sortOrder: "asc,desc.nullslast" as any,
+    primaryKeys: new Map([["zvg_akte", ["zid"]]]),
   });
 
 const processCompanyLogo = async (params: any) => {
