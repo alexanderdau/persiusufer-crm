@@ -48,6 +48,22 @@ type Dokument = {
   notizen?: string | null;
 };
 
+const ContactNameDisplay = () => {
+  const r = useRecordContext<any>();
+  if (!r) return <span>—</span>;
+  const anrede = r.gender === "female" ? "Frau" : r.gender === "male" ? "Herr" : "";
+  const name = [r.first_name, r.last_name].filter(Boolean).join(" ").trim();
+  const label = [anrede, name].filter(Boolean).join(" ") || r.title || "—";
+  return (
+    <span>
+      {label}
+      {r.title ? (
+        <span className="text-xs text-muted-foreground ml-1">({r.title})</span>
+      ) : null}
+    </span>
+  );
+};
+
 const ART_LABELS: Record<string, string> = {
   expose: "Exposé",
   anordnung: "Anordnung",
@@ -506,24 +522,28 @@ const ZvgAkteShowContent = () => {
                 ? "kostenlos"
                 : formatEur(record.gpreis_eur)}
             </Row>
-            <Row label="Rechtspfleger">
+            <Row label="Rechtspfleger:in">
               {record.rechtspfleger_contact_id ? (
                 <ReferenceField
                   source="rechtspfleger_contact_id"
                   reference="contacts"
                   link="show"
-                />
+                >
+                  <ContactNameDisplay />
+                </ReferenceField>
               ) : (
                 "—"
               )}
             </Row>
-            <Row label="Sachverständiger">
+            <Row label="Sachverständige:r">
               {record.sachverstaendiger_contact_id ? (
                 <ReferenceField
                   source="sachverstaendiger_contact_id"
                   reference="contacts"
                   link="show"
-                />
+                >
+                  <ContactNameDisplay />
+                </ReferenceField>
               ) : (
                 "—"
               )}

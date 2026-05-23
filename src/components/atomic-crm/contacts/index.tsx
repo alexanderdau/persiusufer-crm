@@ -9,6 +9,9 @@ export default {
   show: ContactShow,
   edit: ContactEdit,
   create: ContactCreate,
-  recordRepresentation: (record: Contact) =>
-    record?.first_name + " " + record?.last_name,
+  recordRepresentation: (record: Contact) => {
+    const parts = [record?.first_name, record?.last_name].filter(Boolean);
+    const name = parts.join(" ").trim() || "—";
+    return record?.title ? `${record.title} ${name}` : name;
+  },
 };
