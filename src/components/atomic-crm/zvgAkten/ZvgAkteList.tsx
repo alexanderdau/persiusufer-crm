@@ -95,9 +95,9 @@ const ZvgAkteListLayout = () => {
             />
             <DataTable.Col<ZvgAkte> source="az" label="AZ" />
             <DataTable.Col<ZvgAkte>
-              source="ag_name_raw"
-              label="Amtsgericht"
-              render={(record) => record.ag_name_raw ?? "—"}
+              source="objektart"
+              label="Objektart"
+              render={(record) => record.objektart?.trim() ?? "—"}
             />
             <DataTable.Col<ZvgAkte>
               source="gpreis_eur"
