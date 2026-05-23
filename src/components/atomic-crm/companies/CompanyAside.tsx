@@ -1,4 +1,5 @@
-import { Globe, Linkedin, Mail, Phone, Printer, Scale } from "lucide-react";
+import { useState } from "react";
+import { Check, Copy, Globe, Linkedin, Mail, Phone, Printer, Scale } from "lucide-react";
 import {
   useGetIdentity,
   useLocaleState,
@@ -165,17 +166,61 @@ export const AddressInfo = ({ record }: { record: Company }) => {
     return null;
   }
 
+  const isAg = record.sector === "Amtsgericht";
+  const stateName = getStateName(record.state_abbr);
+  const country = record.country || "Deutschland";
+
+  // Lines in postal-letter order. For AGs: name + Abteilung at top.
+  const lines: string[] = [];
+  if (isAg) {
+    if (record.name) lines.push(record.name);
+    if (record.abteilung)
+      lines.push("Abteilung für Zwangsversteigerung");
+  }
+  if (record.address) lines.push(record.address);
+  const plzOrt = [record.zipcode, record.city].filter(Boolean).join(" ");
+  if (plzOrt) lines.push(plzOrt);
+  if (stateName) lines.push(stateName);
+  if (country) lines.push(country);
+
   return (
     <AsideSection
       title={translate("resources.companies.field_categories.address")}
       noGap
     >
-      <TextField source="address" />
-      <TextField source="city" />
-      <TextField source="zipcode" />
-      <span className="text-sm">{getStateName(record.state_abbr)}</span>
-      <TextField source="country" />
+      <div className="flex flex-col gap-1">
+        {lines.map((line, i) => (
+          <span key={i} className="text-sm">
+            {line}
+          </span>
+        ))}
+        <CopyAddressPill lines={lines} />
+      </div>
     </AsideSection>
+  );
+};
+
+const CopyAddressPill = ({ lines }: { lines: string[] }) => {
+  const [copied, setCopied] = useState(false);
+  const onClick = async () => {
+    try {
+      await navigator.clipboard.writeText(lines.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard failed silently
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-1 inline-flex items-center self-start gap-1 px-2 py-0.5 rounded-full border text-xs hover:bg-muted transition-colors"
+      aria-label="Anschrift kopieren"
+    >
+      {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+      <span>{copied ? "Kopiert" : "Anschrift kopieren"}</span>
+    </button>
   );
 };
 
