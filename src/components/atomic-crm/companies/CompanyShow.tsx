@@ -324,9 +324,8 @@ const AmtsgerichtPanel = ({ record }: { record: Company }) => {
     Array.isArray(record.sprechzeiten) && record.sprechzeiten.length > 0;
   const hasServiceleistungen =
     Array.isArray(record.serviceleistungen) && record.serviceleistungen.length > 0;
-  const hasGmaps = !!record.gmaps_embed_url;
 
-  if (!hasSprechzeiten && !hasServiceleistungen && !hasGmaps) {
+  if (!hasSprechzeiten && !hasServiceleistungen) {
     return (
       <p className="text-sm text-muted-foreground py-4">
         Keine Amtsgericht-Detaildaten gespeichert.
@@ -374,21 +373,6 @@ const AmtsgerichtPanel = ({ record }: { record: Company }) => {
         </div>
       ) : null}
 
-      {hasGmaps ? (
-        <div>
-          <h3 className="text-sm font-semibold mb-2">Anfahrt</h3>
-          <div className="aspect-video rounded-md overflow-hidden border bg-muted">
-            <iframe
-              src={extractGmapsSrc(record.gmaps_embed_url!)}
-              className="w-full h-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
-          </div>
-        </div>
-      ) : null}
-
       {record.zvg_last_synced_at ? (
         <p className="text-xs text-muted-foreground">
           Daten von zvg.com, zuletzt synct:{" "}
@@ -397,11 +381,4 @@ const AmtsgerichtPanel = ({ record }: { record: Company }) => {
       ) : null}
     </div>
   );
-};
-
-/** zvg.com liefert GMapsLink als kompletten iframe-HTML-Schnipsel mit
- * trailing attributes. Wir extrahieren nur die echte URL. */
-const extractGmapsSrc = (raw: string): string => {
-  const m = raw.match(/^(https:\/\/www\.google\.com\/maps\/embed\?[^\s"]+)/);
-  return m ? m[1] : raw;
 };

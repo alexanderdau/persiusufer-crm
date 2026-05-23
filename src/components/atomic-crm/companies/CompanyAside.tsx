@@ -1,4 +1,4 @@
-import { Globe, Linkedin, Mail, Phone, Printer, Scale, Train } from "lucide-react";
+import { Globe, Linkedin, Mail, Phone, Printer, Scale } from "lucide-react";
 import {
   useGetIdentity,
   useLocaleState,
@@ -18,6 +18,7 @@ import { useConfigurationContext } from "../root/ConfigurationContext";
 import type { Company } from "../types";
 import { getTranslatedCompanySizeLabel } from "./getTranslatedCompanySizeLabel";
 import { sizes } from "./sizes";
+import { getStateName } from "./states";
 import { useGetSalesName } from "../sales/useGetSalesName";
 
 interface CompanyAsideProps {
@@ -172,7 +173,7 @@ export const AddressInfo = ({ record }: { record: Company }) => {
       <TextField source="address" />
       <TextField source="city" />
       <TextField source="zipcode" />
-      <TextField source="state_abbr" />
+      <span className="text-sm">{getStateName(record.state_abbr)}</span>
       <TextField source="country" />
     </AsideSection>
   );
@@ -253,7 +254,6 @@ export const AmtsgerichtContactInfo = ({ record }: { record: Company }) => {
     !record.telefax &&
     !record.telefon_2 &&
     !record.telefon_3 &&
-    !record.verbindung &&
     !record.postanschrift
   ) {
     return null;
@@ -301,12 +301,6 @@ export const AmtsgerichtContactInfo = ({ record }: { record: Company }) => {
         <div className="flex flex-row items-center gap-1 min-h-[24px]">
           <Printer className="w-4 h-4" />
           <span className="text-sm">Fax: {record.telefax}</span>
-        </div>
-      ) : null}
-      {record.verbindung ? (
-        <div className="flex flex-row items-start gap-1 min-h-[24px]">
-          <Train className="w-4 h-4 mt-0.5" />
-          <span className="text-sm whitespace-pre-line">{record.verbindung}</span>
         </div>
       ) : null}
       {record.postanschrift && record.postanschrift !== record.address ? (
