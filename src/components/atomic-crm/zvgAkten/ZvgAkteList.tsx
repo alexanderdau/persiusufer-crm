@@ -66,6 +66,24 @@ const ZvgAkteListLayout = () => {
               render={(record) => record.ag_name_raw ?? "—"}
             />
             <DataTable.Col<ZvgAkte>
+              source="gpreis_eur"
+              label=""
+              headerClassName="w-8"
+              cellClassName="w-8"
+              disableSort
+              render={(record) =>
+                record.gpreis_eur === 0 ? (
+                  <Badge
+                    variant="outline"
+                    className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
+                    title="Kostenloses Gutachten vorhanden"
+                  >
+                    G
+                  </Badge>
+                ) : null
+              }
+            />
+            <DataTable.Col<ZvgAkte>
               source="termin"
               label="Termin"
               render={(record) => formatDate(record.termin)}
@@ -102,24 +120,6 @@ const ZvgAkteListLayout = () => {
                     ?.label ?? record.status}
                 </Badge>
               )}
-            />
-            <DataTable.Col<ZvgAkte>
-              source="gpreis_eur"
-              label=""
-              headerClassName="w-8"
-              cellClassName="w-8"
-              disableSort
-              render={(record) =>
-                record.gpreis_eur === 0 ? (
-                  <Badge
-                    variant="outline"
-                    className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
-                    title="Kostenloses Gutachten vorhanden"
-                  >
-                    G
-                  </Badge>
-                ) : null
-              }
             />
           </DataTable>
         </Card>
