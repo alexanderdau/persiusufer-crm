@@ -9,6 +9,7 @@ import {
   FileText,
   Gavel,
   Loader2,
+  MapPin,
 } from "lucide-react";
 
 import { ReferenceField } from "@/components/admin/reference-field";
@@ -487,7 +488,22 @@ const ZvgAkteShowContent = () => {
             <CardTitle className="text-base">Objekt</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Row label="Adresse">{addrSummary || "—"}</Row>
+            <Row label="Adresse">
+              <div className="flex flex-col gap-1">
+                <span>{addrSummary || "—"}</span>
+                {addrSummary ? (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addrSummary)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="self-start inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs hover:bg-muted transition-colors"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    <span>Google Maps</span>
+                  </a>
+                ) : null}
+              </div>
+            </Row>
             <Row label="Objektart">{record.objektart?.trim() ?? "—"}</Row>
             <Row label="Art">{record.art ?? "—"}</Row>
             <Row label="Beschreibung">
