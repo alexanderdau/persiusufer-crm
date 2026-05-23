@@ -285,6 +285,9 @@ export const germanCrmMessages = {
         note_or_attachment_required: "Eine Notiz oder ein Anhang ist erforderlich",
       },
     },
+    zvg_akte: {
+      name: "ZVG-Akte |||| ZVG-Akten",
+    },
     sales: {
       name: "Benutzer |||| Benutzer",
       fields: {

@@ -288,6 +288,9 @@ export const frenchCrmMessages = {
         note_or_attachment_required: "Une note ou une pièce jointe est requise",
       },
     },
+    zvg_akte: {
+      name: "Dossier ZVG |||| Dossiers ZVG",
+    },
     sales: {
       name: "Utilisateur |||| Utilisateurs",
       fields: {

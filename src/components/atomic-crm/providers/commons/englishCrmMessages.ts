@@ -283,6 +283,9 @@ export const englishCrmMessages = {
         note_or_attachment_required: "A note or an attachment is required",
       },
     },
+    zvg_akte: {
+      name: "ZVG Case |||| ZVG Cases",
+    },
     sales: {
       name: "User |||| Users",
       fields: {
