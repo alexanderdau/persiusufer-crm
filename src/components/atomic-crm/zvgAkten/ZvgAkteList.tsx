@@ -71,8 +71,15 @@ const ZvgAkteListLayout = () => {
               render={(record) => formatDate(record.termin)}
             />
             <DataTable.Col<ZvgAkte>
+              source="aufnahmetag"
+              label="Aufnahmetag"
+              render={(record) => formatDate(record.aufnahmetag)}
+            />
+            <DataTable.Col<ZvgAkte>
               source="vkw_eur"
               label="VKW"
+              headerClassName="text-right"
+              cellClassName="text-right"
               render={(record) => (
                 <span className="tabular-nums">
                   {formatEur(record.vkw_eur)}
@@ -97,13 +104,22 @@ const ZvgAkteListLayout = () => {
               )}
             />
             <DataTable.Col<ZvgAkte>
-              source="bietreichweite_eur"
-              label="Bietreichweite"
-              render={(record) => (
-                <span className="tabular-nums">
-                  {formatEur(record.bietreichweite_eur)}
-                </span>
-              )}
+              source="gpreis_eur"
+              label=""
+              headerClassName="w-8"
+              cellClassName="w-8"
+              disableSort
+              render={(record) =>
+                record.gpreis_eur === 0 ? (
+                  <Badge
+                    variant="outline"
+                    className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
+                    title="Kostenloses Gutachten vorhanden"
+                  >
+                    G
+                  </Badge>
+                ) : null
+              }
             />
           </DataTable>
         </Card>
