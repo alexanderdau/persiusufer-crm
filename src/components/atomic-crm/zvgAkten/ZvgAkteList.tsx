@@ -72,7 +72,7 @@ const ZvgAkteListLayout = () => {
               cellClassName="w-8"
               disableSort
               render={(record) =>
-                record.gpreis_eur === 0 ? (
+                record.gpreis_eur === 0 && record.gutachten_url ? (
                   <Badge
                     variant="outline"
                     className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
