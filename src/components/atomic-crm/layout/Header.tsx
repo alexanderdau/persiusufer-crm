@@ -24,6 +24,8 @@ const Header = () => {
     currentPath = "/companies";
   } else if (matchPath("/deals/*", location.pathname)) {
     currentPath = "/deals";
+  } else if (matchPath("/zvg_akte/*", location.pathname)) {
+    currentPath = "/zvg_akte";
   } else {
     currentPath = false;
   }
@@ -77,6 +79,13 @@ const Header = () => {
                     })}
                     to="/deals"
                     isActive={currentPath === "/deals"}
+                  />
+                  <NavigationTab
+                    label={translate("resources.zvg_akte.name", {
+                      smart_count: 2,
+                    })}
+                    to="/zvg_akte"
+                    isActive={currentPath === "/zvg_akte"}
                   />
                 </nav>
               </div>
