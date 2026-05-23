@@ -71,17 +71,31 @@ const ZvgAkteListLayout = () => {
               headerClassName="w-8"
               cellClassName="w-8"
               disableSort
-              render={(record) =>
-                record.gpreis_eur === 0 && record.gutachten_url ? (
-                  <Badge
-                    variant="outline"
-                    className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
-                    title="Kostenloses Gutachten vorhanden"
-                  >
-                    G
-                  </Badge>
-                ) : null
-              }
+              render={(record) => {
+                if (record.gpreis_eur === 0 && record.gutachten_url) {
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
+                      title="Kostenloses Gutachten vorhanden"
+                    >
+                      G
+                    </Badge>
+                  );
+                }
+                if (record.gpreis_eur && record.gpreis_eur > 0) {
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-muted text-muted-foreground border-muted-foreground/30 font-semibold px-1.5 py-0 h-5"
+                      title={`Gutachten kostenpflichtig (${record.gpreis_eur} €)`}
+                    >
+                      G€
+                    </Badge>
+                  );
+                }
+                return null;
+              }}
             />
             <DataTable.Col<ZvgAkte>
               source="termin"
