@@ -1,5 +1,5 @@
 import { useGetIdentity, useListContext } from "ra-core";
-import { Clock, FileText, Split, TrendingUp } from "lucide-react";
+import { Clock, FileText, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -12,6 +12,7 @@ import { FilterCategory } from "../filters/FilterCategory";
 import { ResponsiveFilters } from "../misc/ResponsiveFilters";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
+import { states } from "../companies/states";
 
 const formatEur = (value?: number | null) =>
   value == null
@@ -191,13 +192,16 @@ const ZvgAkteListFilter = () => {
         />
       </FilterCategory>
 
-      <FilterCategory label="Art" icon={<Split />}>
-        <ToggleFilterButton
-          className="w-auto md:w-full justify-between h-10 md:h-8"
-          label="Teilungsversteigerung"
-          value={{ is_teilung: true }}
-          size={isMobile ? "lg" : undefined}
-        />
+      <FilterCategory label="Bundesland" icon={<MapPin />}>
+        {states.map((s) => (
+          <ToggleFilterButton
+            key={s.id}
+            className="w-auto md:w-full justify-between h-10 md:h-8"
+            label={s.name}
+            value={{ state_abbr: s.id }}
+            size={isMobile ? "lg" : undefined}
+          />
+        ))}
       </FilterCategory>
     </ResponsiveFilters>
   );
