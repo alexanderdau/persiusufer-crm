@@ -39,6 +39,17 @@ export type ZvgAkte = {
   created_at: string;
   updated_at: string;
   raw_json?: Record<string, any> | null;
+  detail_json?: Record<string, any> | null;
+  objekt_anschrift?: string | null;
+  aufnahmetag?: string | null;
+  expose_path?: string | null;
+  anordnung_path?: string | null;
+  biethinweis_path?: string | null;
+  glaeubiger_path?: string | null;
+  cover_bild_path?: string | null;
+  bilder_paths?: string[] | null;
+  notify_subscribed_at?: string | null;
+  notify_email?: string | null;
 } & Pick<RaRecord, "id">;
 
 export const ZVG_STATUSES = [
