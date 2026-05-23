@@ -28,7 +28,7 @@ import {
   useTranslateLabel,
 } from "ra-core";
 import { useNavigate } from "react-router";
-import { ArrowDownAZ, ArrowUpZA } from "lucide-react";
+import { ArrowDownAZ, ArrowUpZA, ChevronsUpDown } from "lucide-react";
 import get from "lodash/get";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -401,7 +401,9 @@ function DataTableHeadCell<
                   ) : (
                     <ArrowUpZA className="ml-2 h-6 w-6" />
                   )
-                ) : null}
+                ) : (
+                  <ChevronsUpDown className="ml-2 h-4 w-4 opacity-40" />
+                )}
                 {headerClassName?.includes("text-right") ? (
                   <FieldTitle
                     label={label}
