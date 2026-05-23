@@ -63,7 +63,7 @@ export const ZVG_STATUSES = [
   { value: "phase5", label: "Phase 5 (Spielplan)" },
   { value: "phase6", label: "Phase 6 (Verwertung)" },
   { value: "stop", label: "Stop" },
-  { value: "abgegeben", label: "Abgegeben" },
+  { value: "aufgehoben", label: "Aufgehoben" },
   { value: "ersteigert", label: "Ersteigert" },
   { value: "verloren", label: "Verloren" },
 ];

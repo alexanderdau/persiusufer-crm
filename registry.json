@@ -42,6 +42,26 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/zvgAkten/useFavoriten.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/index.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/ZvgAkteShow.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/ZvgAkteList.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/ZvgAkteEdit.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/tasks/tasksPredicate.ts",
           "type": "registry:component"
         },
@@ -315,6 +335,10 @@
         },
         {
           "path": "src/components/atomic-crm/providers/commons/getCompanyAvatar.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/providers/commons/germanCrmMessages.ts",
           "type": "registry:component"
         },
         {
@@ -738,6 +762,10 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/companies/states.ts",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/companies/sizes.ts",
           "type": "registry:component"
         },
@@ -795,6 +823,22 @@
         },
         {
           "path": "src/components/atomic-crm/companies/AutocompleteCompanyInput.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/baugrundstuecke/useBaugFavoriten.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/baugrundstuecke/index.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/baugrundstuecke/BaugrundstueckShow.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/baugrundstuecke/BaugrundstueckList.tsx",
           "type": "registry:component"
         },
         {
