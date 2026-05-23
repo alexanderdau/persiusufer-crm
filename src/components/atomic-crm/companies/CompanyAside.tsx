@@ -170,18 +170,21 @@ export const AddressInfo = ({ record }: { record: Company }) => {
   const stateName = getStateName(record.state_abbr);
   const country = record.country || "Deutschland";
 
-  // Lines in postal-letter order. For AGs: name + Abteilung at top.
-  const lines: string[] = [];
+  // Brief-Block-Lines: was kopiert wird (Name, Abteilung, Straße, PLZ+Ort)
+  const copyLines: string[] = [];
   if (isAg) {
-    if (record.name) lines.push(record.name);
+    if (record.name) copyLines.push(record.name);
     if (record.abteilung)
-      lines.push("Abteilung für Zwangsversteigerung");
+      copyLines.push("Abteilung für Zwangsversteigerung");
   }
-  if (record.address) lines.push(record.address);
+  if (record.address) copyLines.push(record.address);
   const plzOrt = [record.zipcode, record.city].filter(Boolean).join(" ");
-  if (plzOrt) lines.push(plzOrt);
-  if (stateName) lines.push(stateName);
-  if (country) lines.push(country);
+  if (plzOrt) copyLines.push(plzOrt);
+
+  // Display-Lines: copyLines + Bundesland + Land (zur Info, NICHT in Copy)
+  const displayLines = [...copyLines];
+  if (stateName) displayLines.push(stateName);
+  if (country) displayLines.push(country);
 
   return (
     <AsideSection
@@ -189,12 +192,12 @@ export const AddressInfo = ({ record }: { record: Company }) => {
       noGap
     >
       <div className="flex flex-col gap-1">
-        {lines.map((line, i) => (
+        {displayLines.map((line, i) => (
           <span key={i} className="text-sm">
             {line}
           </span>
         ))}
-        <CopyAddressPill lines={lines} />
+        <CopyAddressPill lines={copyLines} />
       </div>
     </AsideSection>
   );
