@@ -1,4 +1,4 @@
-import { Globe, Linkedin, Phone } from "lucide-react";
+import { Globe, Linkedin, Mail, Phone, Printer, Scale, Train } from "lucide-react";
 import {
   useGetIdentity,
   useLocaleState,
@@ -40,6 +40,8 @@ export const CompanyAside = ({ link = "edit" }: CompanyAsideProps) => {
       </div>
 
       <CompanyInfo record={record} />
+
+      {record.sector === "Amtsgericht" ? <AmtsgerichtContactInfo record={record} /> : null}
 
       <AddressInfo record={record} />
 
@@ -239,6 +241,103 @@ export const AdditionalInfo = ({ record }: { record: Company }) => {
           })}{" "}
         </p>
       )}
+    </AsideSection>
+  );
+};
+
+
+export const AmtsgerichtContactInfo = ({ record }: { record: Company }) => {
+  const translate = useTranslate();
+  if (
+    !record.email &&
+    !record.telefax &&
+    !record.telefon_2 &&
+    !record.telefon_3 &&
+    !record.verbindung &&
+    !record.postanschrift
+  ) {
+    return null;
+  }
+  return (
+    <AsideSection title="Amtsgericht-Kontakt">
+      {record.email ? (
+        <div className="flex flex-row items-center gap-1 min-h-[24px]">
+          <Mail className="w-4 h-4" />
+          <a
+            className="underline hover:no-underline text-sm"
+            href={`mailto:${record.email}`}
+          >
+            {record.email}
+          </a>
+        </div>
+      ) : null}
+      {record.telefon_2 ? (
+        <div className="flex flex-row items-center gap-1 min-h-[24px]">
+          <Phone className="w-4 h-4" />
+          <span className="text-sm">
+            {record.telefon_2}
+            {record.telefon_2_notiz ? (
+              <span className="text-muted-foreground ml-1">
+                · {record.telefon_2_notiz}
+              </span>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
+      {record.telefon_3 ? (
+        <div className="flex flex-row items-center gap-1 min-h-[24px]">
+          <Phone className="w-4 h-4" />
+          <span className="text-sm">
+            {record.telefon_3}
+            {record.telefon_3_notiz ? (
+              <span className="text-muted-foreground ml-1">
+                · {record.telefon_3_notiz}
+              </span>
+            ) : null}
+          </span>
+        </div>
+      ) : null}
+      {record.telefax ? (
+        <div className="flex flex-row items-center gap-1 min-h-[24px]">
+          <Printer className="w-4 h-4" />
+          <span className="text-sm">Fax: {record.telefax}</span>
+        </div>
+      ) : null}
+      {record.verbindung ? (
+        <div className="flex flex-row items-start gap-1 min-h-[24px]">
+          <Train className="w-4 h-4 mt-0.5" />
+          <span className="text-sm whitespace-pre-line">{record.verbindung}</span>
+        </div>
+      ) : null}
+      {record.postanschrift && record.postanschrift !== record.address ? (
+        <div className="text-xs text-muted-foreground mt-2">
+          <span className="font-medium">Postanschrift: </span>
+          <span
+            className="whitespace-pre-line"
+            dangerouslySetInnerHTML={{
+              __html: record.postanschrift.replace(/<br\s*\/?>/g, "\n"),
+            }}
+          />
+        </div>
+      ) : null}
+      {record.biethinweise_link ? (
+        <div className="flex flex-row items-center gap-1 min-h-[24px]">
+          <Scale className="w-4 h-4" />
+          <a
+            className="underline hover:no-underline text-sm"
+            href={record.biethinweise_link}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Biethinweis (PDF)
+          </a>
+        </div>
+      ) : null}
+      {record.abteilung ? (
+        <div className="text-xs text-muted-foreground italic mt-1">
+          {record.abteilung}
+        </div>
+      ) : null}
     </AsideSection>
   );
 };

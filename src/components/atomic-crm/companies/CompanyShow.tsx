@@ -118,7 +118,13 @@ const CompanyShowContent = () => {
               <h5 className="text-xl ml-2 flex-1">{record.name}</h5>
             </div>
             <Tabs defaultValue={currentTab} onValueChange={handleTabChange}>
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList
+                className={`grid w-full grid-cols-${
+                  2 +
+                  (record.nb_deals ? 1 : 0) +
+                  (record.sector === "Amtsgericht" ? 1 : 0)
+                }`}
+              >
                 <TabsTrigger value="activity">
                   {translate("crm.common.activity")}
                 </TabsTrigger>
@@ -135,6 +141,9 @@ const CompanyShowContent = () => {
                       smart_count: record.nb_deals ?? 0,
                     })}
                   </TabsTrigger>
+                ) : null}
+                {record.sector === "Amtsgericht" ? (
+                  <TabsTrigger value="amtsgericht">Amtsgericht</TabsTrigger>
                 ) : null}
               </TabsList>
               <TabsContent value="activity" className="pt-2">
@@ -178,6 +187,11 @@ const CompanyShowContent = () => {
                   </ReferenceManyField>
                 ) : null}
               </TabsContent>
+              {record.sector === "Amtsgericht" ? (
+                <TabsContent value="amtsgericht" className="pt-2">
+                  <AmtsgerichtPanel record={record} />
+                </TabsContent>
+              ) : null}
             </Tabs>
           </CardContent>
         </Card>
@@ -302,4 +316,92 @@ const DealsIterator = () => {
       </div>
     </div>
   );
+};
+
+
+const AmtsgerichtPanel = ({ record }: { record: Company }) => {
+  const hasSprechzeiten =
+    Array.isArray(record.sprechzeiten) && record.sprechzeiten.length > 0;
+  const hasServiceleistungen =
+    Array.isArray(record.serviceleistungen) && record.serviceleistungen.length > 0;
+  const hasGmaps = !!record.gmaps_embed_url;
+
+  if (!hasSprechzeiten && !hasServiceleistungen && !hasGmaps) {
+    return (
+      <p className="text-sm text-muted-foreground py-4">
+        Keine Amtsgericht-Detaildaten gespeichert.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 py-2">
+      {hasSprechzeiten ? (
+        <div>
+          <h3 className="text-sm font-semibold mb-2">Sprechzeiten</h3>
+          <div className="border rounded-md divide-y">
+            {record.sprechzeiten!.map((row, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-2 gap-2 px-3 py-2 text-sm"
+              >
+                <div className="font-medium">{row.links || "—"}</div>
+                <div className="whitespace-pre-line text-muted-foreground">
+                  {row.rechts || "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {hasServiceleistungen ? (
+        <div>
+          <h3 className="text-sm font-semibold mb-2">Serviceleistungen</h3>
+          <div className="border rounded-md divide-y">
+            {record.serviceleistungen!.map((row, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-2 gap-2 px-3 py-2 text-sm"
+              >
+                <div className="font-medium">{row.links || "—"}</div>
+                <div className="whitespace-pre-line text-muted-foreground">
+                  {row.rechts || "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {hasGmaps ? (
+        <div>
+          <h3 className="text-sm font-semibold mb-2">Anfahrt</h3>
+          <div className="aspect-video rounded-md overflow-hidden border bg-muted">
+            <iframe
+              src={extractGmapsSrc(record.gmaps_embed_url!)}
+              className="w-full h-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {record.zvg_last_synced_at ? (
+        <p className="text-xs text-muted-foreground">
+          Daten von zvg.com, zuletzt synct:{" "}
+          {new Date(record.zvg_last_synced_at).toLocaleString("de-DE")}
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
+/** zvg.com liefert GMapsLink als kompletten iframe-HTML-Schnipsel mit
+ * trailing attributes. Wir extrahieren nur die echte URL. */
+const extractGmapsSrc = (raw: string): string => {
+  const m = raw.match(/^(https:\/\/www\.google\.com\/maps\/embed\?[^\s"]+)/);
+  return m ? m[1] : raw;
 };

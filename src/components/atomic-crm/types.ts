@@ -69,6 +69,23 @@ export type Company = {
   context_links?: string[];
   nb_contacts?: number;
   nb_deals?: number;
+  // AG-spezifisch (zvg.com)
+  zvg_gericht_id?: number | null;
+  abteilung?: string | null;
+  postanschrift?: string | null;
+  email?: string | null;
+  telefon_notiz?: string | null;
+  telefon_2?: string | null;
+  telefon_2_notiz?: string | null;
+  telefon_3?: string | null;
+  telefon_3_notiz?: string | null;
+  telefax?: string | null;
+  verbindung?: string | null;
+  sprechzeiten?: { links: string; rechts: string }[] | null;
+  serviceleistungen?: { links: string; rechts: string }[] | null;
+  biethinweise_link?: string | null;
+  gmaps_embed_url?: string | null;
+  zvg_last_synced_at?: string | null;
 } & Pick<RaRecord, "id">;
 
 export type EmailAndType = {
