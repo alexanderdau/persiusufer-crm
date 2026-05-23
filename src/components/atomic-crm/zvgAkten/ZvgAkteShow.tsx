@@ -8,6 +8,7 @@ import {
   ExternalLink,
   FileText,
   Gavel,
+  Heart,
   Loader2,
   MapPin,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { getSupabaseClient } from "../providers/supabase/supabase";
+import { useFavoriten } from "./useFavoriten";
 
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
 
@@ -323,6 +325,24 @@ const DokumenteListe = () => {
   );
 };
 
+// --- Favorit-Button ---------------------------------------------------------
+
+const FavoritButton = ({ zid }: { zid: string }) => {
+  const { isFavorit, toggle, isToggling } = useFavoriten();
+  const fav = isFavorit(zid);
+  return (
+    <Button
+      variant={fav ? "default" : "outline"}
+      size="sm"
+      onClick={() => toggle(zid)}
+      disabled={isToggling}
+    >
+      <Heart className={fav ? "size-4 fill-current" : "size-4"} />
+      {fav ? "Favorit entfernt" : "Als Favorit merken"}
+    </Button>
+  );
+};
+
 // --- Notify-Button ----------------------------------------------------------
 
 const NotifyButton = ({
@@ -457,6 +477,7 @@ const ZvgAkteShowContent = () => {
             zvg.com
           </a>
         </Button>
+        <FavoritButton zid={record.zid} />
         <NotifyButton
           zid={record.zid}
           subscribedAt={record.notify_subscribed_at}

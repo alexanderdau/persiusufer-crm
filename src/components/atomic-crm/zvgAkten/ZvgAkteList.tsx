@@ -1,5 +1,5 @@
-import { useGetIdentity, useListContext } from "ra-core";
-import { Clock, FileText, MapPin, TrendingUp } from "lucide-react";
+import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
+import { Clock, FileText, Heart, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -11,7 +11,9 @@ import { Card } from "@/components/ui/card";
 import { FilterCategory } from "../filters/FilterCategory";
 import { ResponsiveFilters } from "../misc/ResponsiveFilters";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
+import { useFavoriten } from "./useFavoriten";
 import { states } from "../companies/states";
 
 const formatEur = (value?: number | null) =>
@@ -32,6 +34,30 @@ const formatDate = (value?: string | null) => {
     month: "2-digit",
     year: "numeric",
   });
+};
+
+const FavoritHerz = () => {
+  const r = useRecordContext<ZvgAkte>();
+  const { isFavorit, toggle, isToggling } = useFavoriten();
+  if (!r) return null;
+  const fav = isFavorit(r.zid);
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="size-6 hover:bg-transparent"
+      disabled={isToggling}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggle(r.zid);
+      }}
+      aria-label={fav ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}
+      title={fav ? "Favorit entfernen" : "Zu Favoriten hinzufügen"}
+    >
+      <Heart className={fav ? "size-4 fill-red-500 text-red-500" : "size-4 text-muted-foreground"} />
+    </Button>
+  );
 };
 
 const ZvgAkteList = () => {
@@ -60,6 +86,13 @@ const ZvgAkteListLayout = () => {
       <div className="w-full flex flex-col gap-4">
         <Card className="py-0">
           <DataTable<ZvgAkte> rowClick="show" bulkActionButtons={false}>
+            <DataTable.Col<ZvgAkte>
+              label=""
+              headerClassName="w-8"
+              cellClassName="w-8 px-1"
+              disableSort
+              render={() => <FavoritHerz />}
+            />
             <DataTable.Col<ZvgAkte> source="az" label="AZ" />
             <DataTable.Col<ZvgAkte>
               source="ag_name_raw"
@@ -145,6 +178,13 @@ const ZvgAkteListLayout = () => {
 
 const ZvgAkteListFilter = () => {
   const isMobile = useIsMobile();
+  const { favoriten } = useFavoriten();
+  const favZids = Array.from(favoriten);
+  // PostgREST "in"-Filter: zid in (z1,z2,...) → "zid@in": "(z1,z2,...)"
+  // Wenn leer: Filter setzt impossible-value damit nichts gezeigt wird
+  const favFilterValue = favZids.length > 0
+    ? { "zid@in": `(${favZids.join(",")})` }
+    : { "zid@eq": "__no_favoriten__" };
   const now = new Date();
   const in30 = addDays(now, 30).toISOString();
   const in90 = addDays(now, 90).toISOString();
@@ -156,6 +196,15 @@ const ZvgAkteListFilter = () => {
         placeholder: "Suche (AZ, Ort, Titel)",
       }}
     >
+      <FilterCategory label="Favoriten" icon={<Heart />}>
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label={`Nur Favoriten${favZids.length ? ` (${favZids.length})` : ""}`}
+          value={favFilterValue}
+          size={isMobile ? "lg" : undefined}
+        />
+      </FilterCategory>
+
       <FilterCategory label="Status" icon={<TrendingUp />}>
         {ZVG_STATUSES.map((status) => (
           <ToggleFilterButton
