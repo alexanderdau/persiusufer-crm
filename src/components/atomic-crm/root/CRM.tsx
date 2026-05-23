@@ -21,6 +21,7 @@ import { Dashboard } from "../dashboard/Dashboard";
 import { MobileDashboard } from "../dashboard/MobileDashboard";
 import deals from "../deals";
 import zvgAkten from "../zvgAkten";
+import baugrundstuecke from "../baugrundstuecke";
 import { Layout } from "../layout/Layout";
 import { MobileLayout } from "../layout/MobileLayout";
 import { SignupPage } from "../login/SignupPage";
@@ -268,6 +269,7 @@ const DesktopAdmin = (
       </CustomRoutes>
       <Resource name="deals" {...deals} />
       <Resource name="zvg_akte" {...zvgAkten} />
+      <Resource name="kleinanzeigen_grundstueck" {...baugrundstuecke} />
       <Resource name="contacts" {...contacts} />
       <Resource name="companies" {...companies} />
       <Resource name="contact_notes" />

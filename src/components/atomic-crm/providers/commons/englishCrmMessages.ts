@@ -286,6 +286,9 @@ export const englishCrmMessages = {
     zvg_akte: {
       name: "ZVG Case |||| ZVG Cases",
     },
+    kleinanzeigen_grundstueck: {
+      name: "Building plot |||| Building plots",
+    },
     sales: {
       name: "User |||| Users",
       fields: {

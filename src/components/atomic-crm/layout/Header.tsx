@@ -26,6 +26,8 @@ const Header = () => {
     currentPath = "/deals";
   } else if (matchPath("/zvg_akte/*", location.pathname)) {
     currentPath = "/zvg_akte";
+  } else if (matchPath("/kleinanzeigen_grundstueck/*", location.pathname)) {
+    currentPath = "/kleinanzeigen_grundstueck";
   } else {
     currentPath = false;
   }
@@ -86,6 +88,13 @@ const Header = () => {
                     })}
                     to="/zvg_akte"
                     isActive={currentPath === "/zvg_akte"}
+                  />
+                  <NavigationTab
+                    label={translate("resources.kleinanzeigen_grundstueck.name", {
+                      smart_count: 2,
+                    })}
+                    to="/kleinanzeigen_grundstueck"
+                    isActive={currentPath === "/kleinanzeigen_grundstueck"}
                   />
                 </nav>
               </div>

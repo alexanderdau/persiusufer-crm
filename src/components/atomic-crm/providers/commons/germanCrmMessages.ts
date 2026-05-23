@@ -288,6 +288,9 @@ export const germanCrmMessages = {
     zvg_akte: {
       name: "ZVG-Akte |||| ZVG-Akten",
     },
+    kleinanzeigen_grundstueck: {
+      name: "Baugrundstück |||| Baugrundstücke",
+    },
     sales: {
       name: "Benutzer |||| Benutzer",
       fields: {
