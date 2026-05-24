@@ -309,6 +309,25 @@ const Sidebar = () => {
             />
           </FilterCategory>
 
+          <FilterCategory icon={<MapPin className="size-4" />} label="Lage-Daten">
+            <ToggleFilterButton
+              label="Mit Adresse oder Kataster"
+              value={{ hat_lage_daten: true }}
+            />
+            <ToggleFilterButton
+              label="Nur mit Kataster (Gemarkung+Flur+Flst.)"
+              value={{ hat_kataster: true }}
+            />
+            <ToggleFilterButton
+              label="Nur mit Straße"
+              value={{ "strasse@not.is": null }}
+            />
+            <ToggleFilterButton
+              label="Mit Anschrifts-Punkt (Bild-Dot)"
+              value={{ hat_anschrift: true }}
+            />
+          </FilterCategory>
+
           <FilterCategory icon={<MapPin className="size-4" />} label="Status">
             {BAUG_STATUSES.map((s) => (
               <ToggleFilterButton

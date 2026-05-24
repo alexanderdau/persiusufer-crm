@@ -58,6 +58,8 @@ export type Baugrundstueck = {
   gemarkung?: string | null;
   flur?: string | null;
   flurstueck?: string | null;
+  hat_kataster?: boolean | null;
+  hat_lage_daten?: boolean | null;
   bebaubare_flaeche_qm?: number | null;
   grundflaeche_qm?: number | null;
   baufeld_qm?: number | null;
