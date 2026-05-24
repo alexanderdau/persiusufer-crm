@@ -263,9 +263,9 @@ const ShowBody = () => {
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Preis</span>
-              <span className="font-medium">
+              <span className="font-medium tabular-nums">
+                {r.preis_vb ? "VB " : ""}
                 {formatEur(r.preis_eur)}
-                {r.preis_vb ? " VB" : ""}
               </span>
             </div>
             <div className="flex justify-between">

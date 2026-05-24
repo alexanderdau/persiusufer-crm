@@ -125,11 +125,14 @@ const TitelCell = () => {
 
 const PreisCell = () => {
   const r = useRecordContext<Baugrundstueck>();
-  if (!r?.preis_eur) return <span className="text-muted-foreground">—</span>;
+  if (!r?.preis_eur)
+    return (
+      <span className="block text-right text-muted-foreground">—</span>
+    );
   return (
-    <span>
+    <span className="block text-right tabular-nums">
+      {r.preis_vb ? "VB " : ""}
       {formatEur(r.preis_eur)}
-      {r.preis_vb ? " VB" : ""}
     </span>
   );
 };
