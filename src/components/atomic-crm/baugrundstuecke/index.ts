@@ -57,6 +57,8 @@ export type Baugrundstueck = {
   bebaubarkeit_kurz?: string | null;
   risiken?: string[] | null;
   ki_analyse_at?: string | null;
+  kontakt_id?: number | null;
+  strasse?: string | null;
   notiz?: string | null;
   favorit?: boolean | null;
   triage?: string | null;

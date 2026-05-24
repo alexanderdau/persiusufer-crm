@@ -1076,6 +1076,15 @@ const ShowBody = () => {
                   : "—"}
               </span>
             </div>
+            {r.kontakt_id && (
+              <div className="pt-2 border-t mt-2">
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link to={`/contacts/${r.kontakt_id}/show`}>
+                    Kontakt öffnen →
+                  </Link>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
