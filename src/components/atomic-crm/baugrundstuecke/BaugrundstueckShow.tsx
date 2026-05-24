@@ -475,6 +475,9 @@ const AdressBlock = () => {
             {bundesland && (
               <div className="text-muted-foreground">{bundesland}</div>
             )}
+            <div className="pt-2">
+              <Anschrift />
+            </div>
           </div>
         )}
       </CardContent>
@@ -753,6 +756,56 @@ const DokumenteCard = () => {
   );
 };
 
+
+const BAUBARKEIT_OPTIONS = ["EFH", "DHH", "EFH/EW", "MFH", "gemischt"];
+const BaubarkeitChips = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const notify = useNotify();
+  const [update] = useUpdate();
+  if (!r) return null;
+  const selected = new Set<string>(r.baubarkeit_typ ?? []);
+  const toggle = (opt: string) => {
+    const next = new Set(selected);
+    if (next.has(opt)) next.delete(opt);
+    else next.add(opt);
+    const arr = [...next].sort();
+    update(
+      "kleinanzeigen_grundstueck",
+      {
+        id: r.id,
+        data: { baubarkeit_typ: arr.length > 0 ? arr : null },
+        previousData: r,
+      },
+      {
+        onError: (e: any) =>
+          notify(`Fehler: ${e?.message ?? e}`, { type: "error" }),
+      },
+    );
+  };
+  return (
+    <div className="flex flex-wrap gap-1.5 max-w-[60%] justify-end">
+      {BAUBARKEIT_OPTIONS.map((opt) => {
+        const on = selected.has(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => toggle(opt)}
+            className={
+              "text-[11px] px-2 py-0.5 rounded border transition-colors " +
+              (on
+                ? "bg-slate-700 text-white border-slate-700"
+                : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50")
+            }
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const ShowBody = () => {
   const r = useRecordContext<Baugrundstueck>();
   if (!r) return null;
@@ -788,7 +841,6 @@ const ShowBody = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <BilderSlider />
-            <Anschrift />
             <Button variant="outline" asChild>
               <a href={r.url} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="size-4 mr-2" />
@@ -925,9 +977,9 @@ const ShowBody = () => {
                 <span className="text-muted-foreground">Erschließung</span>
                 <span>{r.erschliessung ?? "—"}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between col-span-2 items-center">
                 <span className="text-muted-foreground">Baubarkeit</span>
-                <span>{r.baubarkeit_typ ?? "—"}</span>
+                <BaubarkeitChips />
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Grundfläche (GR)</span>

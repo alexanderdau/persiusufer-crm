@@ -761,18 +761,20 @@ def parse_baurecht(beschreibung: str | None) -> dict:
     # §34 BauGB — Bebauung muss sich in nähere Umgebung einfügen
     if RE_PARAGRAPH_34.search(b):
         out["paragraph_34"] = True
-    # Baubarkeit-Typ
-    m = RE_BAUBARKEIT.search(b)
-    if m:
+    # Baubarkeit-Typen (Array: alle gefundenen Optionen)
+    types: set[str] = set()
+    for m in RE_BAUBARKEIT.finditer(b):
         token = m.group(1).lower()
         if "mehrfamilien" in token or token == "mfh":
-            out["baubarkeit_typ"] = "MFH"
+            types.add("MFH")
         elif "doppelhaus" in token or token == "dhh":
-            out["baubarkeit_typ"] = "DHH"
+            types.add("DHH")
         elif "einliegerwohnung" in token or "ew" in token:
-            out["baubarkeit_typ"] = "EFH/EW"
+            types.add("EFH/EW")
         elif "einfamilien" in token or token == "efh":
-            out["baubarkeit_typ"] = "EFH"
+            types.add("EFH")
+    if types:
+        out["baubarkeit_typ"] = sorted(types)
     # Ortsteil
     m = RE_ORTSTEIL.search(b)
     if m:
