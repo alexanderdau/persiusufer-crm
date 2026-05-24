@@ -21,9 +21,11 @@ const FlexForm = (props: React.FormHTMLAttributes<HTMLFormElement>) => (
 export const ResponsiveFilters = ({
   children,
   searchInput,
+  noSearch = false,
 }: {
   children: React.ReactNode;
   searchInput?: Partial<SearchInputProps>;
+  noSearch?: boolean;
 }) => {
   const translate = useTranslate();
   const {
@@ -49,13 +51,15 @@ export const ResponsiveFilters = ({
   if (isMobile) {
     return (
       <div className="flex flex-1 gap-2">
-        <FilterLiveForm formComponent={FlexForm}>
-          <SearchInput
-            source={source}
-            className={className}
-            {...otherSearchInputProps}
-          />
-        </FilterLiveForm>
+        {!noSearch && (
+          <FilterLiveForm formComponent={FlexForm}>
+            <SearchInput
+              source={source}
+              className={className}
+              {...otherSearchInputProps}
+            />
+          </FilterLiveForm>
+        )}
         <Sheet>
           <SheetTrigger asChild>
             <Button
@@ -116,9 +120,11 @@ export const ResponsiveFilters = ({
 
   return (
     <div className="w-52 min-w-52 order-first pt-0.75 flex flex-col gap-4">
-      <FilterLiveForm>
-        <SearchInput source={source} {...otherSearchInputProps} />
-      </FilterLiveForm>
+      {!noSearch && (
+        <FilterLiveForm>
+          <SearchInput source={source} {...otherSearchInputProps} />
+        </FilterLiveForm>
+      )}
       {activeFiltersCount > 0 && (
         <Button
           type="button"

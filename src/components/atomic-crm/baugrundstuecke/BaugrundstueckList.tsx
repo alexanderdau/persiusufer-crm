@@ -292,7 +292,7 @@ const StatusBadge = () => {
 const Sidebar = () => {
   const isMobile = useIsMobile();
   return (
-    <ResponsiveFilters>
+    <ResponsiveFilters noSearch>
       <Card
         className={
           isMobile
