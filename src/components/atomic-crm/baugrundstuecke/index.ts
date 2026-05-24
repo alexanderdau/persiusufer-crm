@@ -46,6 +46,7 @@ export type Baugrundstueck = {
   bpl_nummer?: string | null;
   erschliessung?: string | null;
   teilbar?: boolean | null;
+  paragraph_34?: boolean | null;
   bebaubarkeit_kurz?: string | null;
   risiken?: string[] | null;
   ki_analyse_at?: string | null;

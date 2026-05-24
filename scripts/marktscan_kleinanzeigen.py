@@ -298,7 +298,16 @@ RE_BPLAN_NUMMER = re.compile(
 RE_BPLAN_VORHANDEN = re.compile(
     r"\b(?:rechtskräftiger?|qualifizierter?|gültiger?|bestehender?)\s+B-?Plan|"
     r"\bB-?Plan\s+(?:liegt\s+vor|vorhanden|festgesetzt)|"
-    r"§\s*30\s+BauGB|§\s*34\s+BauGB",
+    r"§\s*30\s+BauGB",
+    re.IGNORECASE,
+)
+RE_PARAGRAPH_34 = re.compile(
+    r"§\s*34\s*BauGB|"
+    r"nach\s+§\s*34\b|"
+    r"gem(?:äß|\.)\s*§\s*34\b|"
+    r"Einf(?:ü|ue)gungsgebot|"
+    r"angepasste\s+Umgebungsbebauung|"
+    r"unbeplant(?:er|en)?\s+Innenbereich",
     re.IGNORECASE,
 )
 RE_TEILBAR = re.compile(
@@ -716,6 +725,9 @@ def parse_baurecht(beschreibung: str | None) -> dict:
     # Teilbar
     if RE_TEILBAR.search(b):
         out["teilbar"] = True
+    # §34 BauGB — Bebauung muss sich in nähere Umgebung einfügen
+    if RE_PARAGRAPH_34.search(b):
+        out["paragraph_34"] = True
     return out
 
 
@@ -740,6 +752,7 @@ Extrahiere genau diese Felder (alle optional, weglassen wenn nicht klar):
 - bpl_nummer (string)
 - erschliessung (string): "voll" | "teilweise" | "unerschlossen"
 - teilbar (bool)
+- paragraph_34 (bool): Bebauung nach §34 BauGB — Einfügungsgebot, kein qualifizierter B-Plan
 - bebaubarkeit_kurz (string, max 200 Zeichen): ein Satz für den Investor
 - risiken (string[]): konkrete Risiken (Altlasten, Naturschutz, Erbpacht, Hochwasser, Denkmalschutz etc.)
 
@@ -859,6 +872,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "bpl_nummer": baurecht.get("bpl_nummer"),
         "erschliessung": baurecht.get("erschliessung"),
         "teilbar": baurecht.get("teilbar"),
+        "paragraph_34": baurecht.get("paragraph_34"),
         "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
         "risiken": baurecht.get("risiken"),
         "ki_analyse_at": baurecht.get("ki_analyse_at"),

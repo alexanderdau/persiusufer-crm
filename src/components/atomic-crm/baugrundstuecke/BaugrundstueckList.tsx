@@ -155,6 +155,11 @@ const TitelCell = () => {
             teilbar
           </Badge>
         )}
+        {r.paragraph_34 && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 border-purple-500 text-purple-700 bg-purple-50">
+            §34 Umgebung
+          </Badge>
+        )}
       </div>
       {r.tags && r.tags.length > 0 && (
         <div className="flex gap-1 mt-1 flex-wrap">
@@ -296,6 +301,10 @@ const Sidebar = () => {
             <ToggleFilterButton
               label="Teilbar"
               value={{ teilbar: true }}
+            />
+            <ToggleFilterButton
+              label="§34 Umgebungsbebauung"
+              value={{ paragraph_34: true }}
             />
           </FilterCategory>
 

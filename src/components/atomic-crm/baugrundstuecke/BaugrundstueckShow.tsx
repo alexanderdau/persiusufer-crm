@@ -715,6 +715,21 @@ const ShowBody = () => {
                 <span className="text-muted-foreground">Erschließung</span>
                 <span>{r.erschliessung ?? "—"}</span>
               </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-muted-foreground">§34 BauGB</span>
+                <span>
+                  {r.paragraph_34 ? (
+                    <Badge
+                      variant="outline"
+                      className="border-purple-500 text-purple-700 bg-purple-50"
+                    >
+                      Angepasste Umgebungsbebauung
+                    </Badge>
+                  ) : (
+                    "—"
+                  )}
+                </span>
+              </div>
             </div>
             {r.risiken && r.risiken.length > 0 && (
               <div className="pt-2 border-t">
