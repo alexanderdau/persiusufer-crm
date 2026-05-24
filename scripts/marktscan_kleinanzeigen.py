@@ -301,6 +301,18 @@ RE_BPLAN_VORHANDEN = re.compile(
     r"§\s*30\s+BauGB",
     re.IGNORECASE,
 )
+RE_GEMARKUNG = re.compile(
+    r"Gemarkung\s+([A-ZÄÖÜ][A-Za-zäöüßÄÖÜ\-]{2,40})",
+)
+RE_FLUR = re.compile(
+    r"\bFlur\s+(?:Nr\.?\s*)?(\d{1,4}[a-z]?)\b",
+    re.IGNORECASE,
+)
+RE_FLURSTUECK = re.compile(
+    r"Flurst(?:ü|ue)ck(?:en?|s)?\s*(?:Nr\.?\s*)?([\d\s/,.-]{1,60}?)(?:\s|,|;|\.|$)",
+    re.IGNORECASE,
+)
+
 RE_BAUTRAEGER_FREI = re.compile(
     r"\bbautr(?:ä|ae)gerfrei\b|"
     r"\bohne\s+Bautr(?:ä|ae)ger(?:bindung)?\b|"
@@ -820,6 +832,18 @@ def parse_baurecht(beschreibung: str | None) -> dict:
                 out["wohnflaeche_qm"] = v
         except ValueError:
             pass
+    # Kataster: Gemarkung / Flur / Flurstück
+    m = RE_GEMARKUNG.search(b)
+    if m:
+        out["gemarkung"] = m.group(1).strip()
+    m = RE_FLUR.search(b)
+    if m:
+        out["flur"] = m.group(1).strip()
+    m = RE_FLURSTUECK.search(b)
+    if m:
+        fs = m.group(1).strip(" ,.")
+        if fs and any(c.isdigit() for c in fs) and len(fs) <= 60:
+            out["flurstueck"] = fs
     # Bauträgerfrei / -gebunden
     if RE_BAUTRAEGER_GEBUNDEN.search(b):
         out["bautraegerfrei"] = False
@@ -1016,6 +1040,9 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "baufeld_qm": baurecht.get("baufeld_qm"),
         "wohnflaeche_qm": baurecht.get("wohnflaeche_qm"),
         "bautraegerfrei": baurecht.get("bautraegerfrei"),
+        "gemarkung": baurecht.get("gemarkung"),
+        "flur": baurecht.get("flur"),
+        "flurstueck": baurecht.get("flurstueck"),
         "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
         "risiken": baurecht.get("risiken"),
         "ki_analyse_at": baurecht.get("ki_analyse_at"),

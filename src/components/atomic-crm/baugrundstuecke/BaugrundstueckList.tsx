@@ -439,6 +439,7 @@ const ListSearch = () => {
   const { filterValues, setFilters, displayedFilters } = useListContext();
   // Initial-Wert aus aktuellem Filter
   const initial =
+    (filterValues.kid != null ? String(filterValues.kid) : null) ??
     (filterValues["plz@like"] as string | undefined)?.replace("*", "") ??
     ((filterValues["title@ilike"] as string | undefined) ?? "").replaceAll(
       "*",
@@ -454,11 +455,15 @@ const ListSearch = () => {
       delete (base as any)["title@ilike"];
       delete (base as any)["plz@like"];
       delete (base as any)["ort@ilike"];
+      delete (base as any).kid;
       if (!v) {
         setFilters(base, displayedFilters);
         return;
       }
-      if (/^\d{1,5}$/.test(v)) {
+      // Ziffern: 1-5 = PLZ-Prefix, ab 6 = Anzeigen-ID (kid)
+      if (/^\d{6,}$/.test(v)) {
+        setFilters({ ...base, kid: Number(v) }, displayedFilters);
+      } else if (/^\d{1,5}$/.test(v)) {
         setFilters({ ...base, "plz@like": v + "*" }, displayedFilters);
       } else {
         setFilters({ ...base, "title@ilike": `*${v}*` }, displayedFilters);
@@ -472,7 +477,7 @@ const ListSearch = () => {
     <div className="flex items-center gap-2 mb-3">
       <Input
         type="search"
-        placeholder="Titel, Ort oder PLZ (z.B. 154 für PLZ-Prefix)…"
+        placeholder="Titel, PLZ (z.B. 154) oder Anzeigen-ID (ab 6 Ziffern)…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         className="max-w-sm"

@@ -1005,6 +1005,18 @@ const ShowBody = () => {
                     : "—"}
                 </span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Gemarkung</span>
+                <span>{r.gemarkung ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Flur</span>
+                <span>{r.flur ?? "—"}</span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-muted-foreground">Flurstück</span>
+                <span className="font-mono text-xs">{r.flurstueck ?? "—"}</span>
+              </div>
               <div className="flex justify-between col-span-2">
                 <span className="text-muted-foreground">§34 BauGB</span>
                 <span>

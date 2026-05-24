@@ -51,6 +51,9 @@ export type Baugrundstueck = {
   provision_satz_pct?: number | null;
   baubarkeit_typ?: string[] | null;
   bautraegerfrei?: boolean | null;
+  gemarkung?: string | null;
+  flur?: string | null;
+  flurstueck?: string | null;
   bebaubare_flaeche_qm?: number | null;
   grundflaeche_qm?: number | null;
   baufeld_qm?: number | null;
