@@ -471,11 +471,13 @@ def parse_plz_ort(ort_str: str) -> tuple[str | None, str | None, str | None]:
     # OT-Token: "Stadt OT Ortsteil" oder "Stadt, OT Ortsteil"
     m_ot = re.search(r"^(.+?)\s*[,]?\s*OT\s+(.+)$", rest, re.IGNORECASE)
     if m_ot:
-        return plz, m_ot.group(1).strip(), m_ot.group(2).strip()
+        ort_, ot_ = m_ot.group(1).strip(), m_ot.group(2).strip()
+        return plz, ort_, (None if ot_.lower() == ort_.lower() else ot_)
     # Fallback: "Stadt - Ortsteil"
     if " - " in rest:
         ort, ortsteil = rest.split(" - ", 1)
-        return plz, ort.strip(), ortsteil.strip()
+        ort, ortsteil = ort.strip(), ortsteil.strip()
+        return plz, ort, (None if ortsteil.lower() == ort.lower() else ortsteil)
     # Sonst: alles ist Ort
     return plz, rest, None
 
@@ -1005,7 +1007,16 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "flaeche_qm": flaeche,
         "plz": plz,
         "ort": ort,
-        "ortsteil": ortsteil or baurecht.get("ortsteil_ki"),
+        "ortsteil": (
+            ortsteil
+            if ortsteil
+            else (
+                baurecht.get("ortsteil_ki")
+                if baurecht.get("ortsteil_ki")
+                and (not ort or baurecht.get("ortsteil_ki").lower() != ort.lower())
+                else None
+            )
+        ),
         "locality_full": locality_full,
         "state_abbr": "BB",
         "grundstuecksart": detail.details.get("Grundstücksart"),
