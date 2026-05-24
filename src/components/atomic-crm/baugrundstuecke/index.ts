@@ -19,6 +19,7 @@ export type Baugrundstueck = {
   ort?: string | null;
   ortsteil?: string | null;
   state_abbr?: string | null;
+  strasse?: string | null;
   grundstuecksart?: string | null;
   angebotsart?: string | null;
   provision?: string | null;

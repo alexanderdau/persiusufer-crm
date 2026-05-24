@@ -11,6 +11,8 @@ import { Show } from "@/components/admin/show";
 import {
   ChevronLeft,
   ChevronRight,
+  Edit2,
+  Save,
   Sparkles,
   Copy,
   ExternalLink,
@@ -33,6 +35,7 @@ import { getSupabaseClient } from "../providers/supabase/supabase";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { BAUG_STATUSES, BAUG_TRIAGE, type Baugrundstueck } from "./index";
@@ -324,6 +327,158 @@ const BilderSlider = () => {
         </div>
       )}
     </div>
+  );
+};
+
+
+const BUNDESLAND_NAMES: Record<string, string> = {
+  BB: "Brandenburg",
+  BE: "Berlin",
+  MV: "Mecklenburg-Vorpommern",
+  ST: "Sachsen-Anhalt",
+  SN: "Sachsen",
+  TH: "Thüringen",
+  NI: "Niedersachsen",
+  NW: "Nordrhein-Westfalen",
+  HE: "Hessen",
+  BY: "Bayern",
+  BW: "Baden-Württemberg",
+  RP: "Rheinland-Pfalz",
+  SL: "Saarland",
+  HH: "Hamburg",
+  HB: "Bremen",
+  SH: "Schleswig-Holstein",
+};
+
+const AdressBlock = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const notify = useNotify();
+  const [update, { isPending }] = useUpdate();
+  const [edit, setEdit] = useState(false);
+  const [form, setForm] = useState({
+    strasse: "",
+    plz: "",
+    ort: "",
+    ortsteil: "",
+    state_abbr: "",
+  });
+  useEffect(() => {
+    if (r) {
+      setForm({
+        strasse: r.strasse ?? "",
+        plz: r.plz ?? "",
+        ort: r.ort ?? "",
+        ortsteil: r.ortsteil ?? "",
+        state_abbr: r.state_abbr ?? "BB",
+      });
+    }
+  }, [r]);
+  if (!r) return null;
+  const bundesland = BUNDESLAND_NAMES[r.state_abbr ?? "BB"] ?? r.state_abbr ?? "";
+  const save = () => {
+    const patch: Record<string, any> = {
+      strasse: form.strasse.trim() || null,
+      plz: form.plz.trim() || null,
+      ort: form.ort.trim() || null,
+      ortsteil: form.ortsteil.trim() || null,
+      state_abbr: form.state_abbr.trim() || null,
+    };
+    update(
+      "kleinanzeigen_grundstueck",
+      { id: r.id, data: patch, previousData: r },
+      {
+        onSuccess: () => {
+          notify("Adresse gespeichert", { type: "success" });
+          setEdit(false);
+        },
+        onError: (e: any) =>
+          notify(`Fehler: ${e?.message ?? e}`, { type: "error" }),
+      },
+    );
+  };
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Adresse</CardTitle>
+          {!edit && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEdit(true)}
+              aria-label="Adresse bearbeiten"
+            >
+              <Edit2 className="size-4 mr-1" /> Bearbeiten
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {edit ? (
+          <div className="space-y-2">
+            <Input
+              placeholder="Straße + Hausnummer"
+              value={form.strasse}
+              onChange={(e) => setForm({ ...form, strasse: e.target.value })}
+            />
+            <div className="flex gap-2">
+              <Input
+                placeholder="PLZ"
+                value={form.plz}
+                onChange={(e) => setForm({ ...form, plz: e.target.value })}
+                className="max-w-[100px]"
+              />
+              <Input
+                placeholder="Ort"
+                value={form.ort}
+                onChange={(e) => setForm({ ...form, ort: e.target.value })}
+              />
+            </div>
+            <Input
+              placeholder="Ortsteil"
+              value={form.ortsteil}
+              onChange={(e) => setForm({ ...form, ortsteil: e.target.value })}
+            />
+            <Input
+              placeholder="Bundesland-Kürzel (BB, BE, MV, …)"
+              value={form.state_abbr}
+              onChange={(e) =>
+                setForm({ ...form, state_abbr: e.target.value.toUpperCase() })
+              }
+              className="max-w-[200px]"
+            />
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={save} disabled={isPending}>
+                <Save className="size-4 mr-1" /> Speichern
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setEdit(false)}
+                disabled={isPending}
+              >
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-1 text-sm">
+            {r.strasse && <div className="font-medium">{r.strasse}</div>}
+            <div className={r.strasse ? "" : "font-medium"}>
+              {[r.plz, r.ort].filter(Boolean).join(" ") || "—"}
+            </div>
+            {r.ortsteil && (
+              <div className="text-muted-foreground">
+                OT {r.ortsteil}
+              </div>
+            )}
+            {bundesland && (
+              <div className="text-muted-foreground">{bundesland}</div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 
@@ -642,6 +797,8 @@ const ShowBody = () => {
             </Button>
           </CardContent>
         </Card>
+
+        <AdressBlock />
 
         <Card>
           <CardHeader>
