@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useListContext, useRecordContext } from "ra-core";
 import { Heart, MapPin, TreePine } from "lucide-react";
 
@@ -279,36 +280,44 @@ const Sidebar = () => {
 };
 
 const ListSearch = () => {
-  const { filterValues, setFilters } = useListContext();
+  const { filterValues, setFilters, displayedFilters } = useListContext();
+  // Initial-Wert aus aktuellem Filter
+  const initial =
+    (filterValues["plz@like"] as string | undefined)?.replace("*", "") ??
+    ((filterValues["title@ilike"] as string | undefined) ?? "").replaceAll(
+      "*",
+      "",
+    );
+  const [q, setQ] = useState(initial);
+
+  // Debounce: 300ms nach letztem Tastendruck Filter setzen
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const v = q.trim();
+      const base = { ...filterValues };
+      delete (base as any)["title@ilike"];
+      delete (base as any)["plz@like"];
+      delete (base as any)["ort@ilike"];
+      if (!v) {
+        setFilters(base, displayedFilters);
+        return;
+      }
+      if (/^\d{1,5}$/.test(v)) {
+        setFilters({ ...base, "plz@like": v + "*" }, displayedFilters);
+      } else {
+        setFilters({ ...base, "title@ilike": `*${v}*` }, displayedFilters);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+
   return (
     <Input
       type="search"
       placeholder="Titel, Ort oder PLZ (z.B. 154 für PLZ-Prefix)…"
-      defaultValue={
-        (filterValues["plz@like"] as string | undefined)?.replace("*", "") ??
-        (filterValues["title@ilike"] as string | undefined)?.replaceAll("*", "") ??
-        ""
-      }
-      onChange={(e) => {
-        const v = e.target.value.trim();
-        const cleared = {
-          ...filterValues,
-          "title@ilike": undefined,
-          "plz@like": undefined,
-          "ort@ilike": undefined,
-        };
-        if (!v) {
-          setFilters(cleared, undefined);
-          return;
-        }
-        if (/^\d{1,5}$/.test(v)) {
-          // Ziffer-Input → PLZ-Prefix
-          setFilters({ ...cleared, "plz@like": v + "*" }, undefined);
-        } else {
-          // Sonst Titel-Substring (ilike, * = %)
-          setFilters({ ...cleared, "title@ilike": `*${v}*` }, undefined);
-        }
-      }}
+      value={q}
+      onChange={(e) => setQ(e.target.value)}
       className="max-w-sm mb-3"
     />
   );
@@ -335,7 +344,7 @@ const BaugrundstueckList = () => {
         <DataTable.Col source="title" label="Titel" disableSort>
           <TitelCell />
         </DataTable.Col>
-        <DataTable.Col label="Ort">
+        <DataTable.Col<Baugrundstueck> source="plz" label="Ort">
           <OrtCell />
         </DataTable.Col>
         <DataTable.Col<Baugrundstueck>
