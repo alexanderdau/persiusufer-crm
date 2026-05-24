@@ -51,6 +51,7 @@ export type Baugrundstueck = {
   provision_satz_pct?: number | null;
   baubarkeit_typ?: string[] | null;
   bautraegerfrei?: boolean | null;
+  erbbaurecht?: boolean | null;
   gemarkung?: string | null;
   flur?: string | null;
   flurstueck?: string | null;

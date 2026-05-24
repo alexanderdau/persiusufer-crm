@@ -301,6 +301,11 @@ RE_BPLAN_VORHANDEN = re.compile(
     r"§\s*30\s+BauGB",
     re.IGNORECASE,
 )
+RE_ERBBAURECHT = re.compile(
+    r"\bErbbaurecht\b|\bErbpacht\b|\bErbbau(?:zins|berechtigt)?\b",
+    re.IGNORECASE,
+)
+
 RE_GEMARKUNG = re.compile(
     r"Gemarkung\s+([A-ZÄÖÜ][A-Za-zäöüßÄÖÜ\-]{2,40})",
 )
@@ -851,6 +856,9 @@ def parse_baurecht(beschreibung: str | None) -> dict:
         out["bautraegerfrei"] = False
     elif RE_BAUTRAEGER_FREI.search(b):
         out["bautraegerfrei"] = True
+    # Erbbaurecht
+    if RE_ERBBAURECHT.search(b):
+        out["erbbaurecht"] = True
     # Provisionssatz aus Beschreibung
     m = RE_PROV_SATZ.search(b)
     if m:
@@ -1051,6 +1059,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "baufeld_qm": baurecht.get("baufeld_qm"),
         "wohnflaeche_qm": baurecht.get("wohnflaeche_qm"),
         "bautraegerfrei": baurecht.get("bautraegerfrei"),
+        "erbbaurecht": baurecht.get("erbbaurecht"),
         "gemarkung": baurecht.get("gemarkung"),
         "flur": baurecht.get("flur"),
         "flurstueck": baurecht.get("flurstueck"),

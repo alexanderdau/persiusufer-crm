@@ -463,25 +463,65 @@ const AdressBlock = () => {
           </div>
         ) : (
           <div className="space-y-1 text-sm">
-            {r.strasse && <div className="font-medium">{r.strasse}</div>}
-            <div className={r.strasse ? "" : "font-medium"}>
-              {[r.plz, r.ort].filter(Boolean).join(" ") || "—"}
-            </div>
-            {r.ortsteil && (
-              <div className="text-muted-foreground">
-                OT {r.ortsteil}
+            <div className="flex items-start gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const adr = [r.strasse, [r.plz, r.ort].filter(Boolean).join(" ")]
+                    .filter(Boolean).join(", ");
+                  if (!adr) return;
+                  navigator.clipboard.writeText(adr);
+                  notify("Adresse kopiert", { type: "success" });
+                }}
+                className="mt-0.5 text-muted-foreground hover:text-foreground"
+                aria-label="Anschrift kopieren"
+                title="Anschrift kopieren (Straße, PLZ Ort)"
+              >
+                <Copy className="size-4" />
+              </button>
+              <div className="flex-1 space-y-1">
+                {r.strasse && <div className="font-medium">{r.strasse}</div>}
+                <div className={r.strasse ? "" : "font-medium"}>
+                  {[r.plz, r.ort].filter(Boolean).join(" ") || "—"}
+                </div>
+                {r.ortsteil && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Ortsteil</span>
+                    <span>{r.ortsteil}</span>
+                  </div>
+                )}
+                {bundesland && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Bundesland</span>
+                    <span>{bundesland}</span>
+                  </div>
+                )}
               </div>
-            )}
-            {bundesland && (
-              <div className="text-muted-foreground">{bundesland}</div>
-            )}
+            </div>
             <div className="pt-2">
-              <Anschrift />
+              <MapsPille />
             </div>
           </div>
         )}
       </CardContent>
     </Card>
+  );
+};
+
+
+const MapsPille = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  if (!r?.plz) return null;
+  const adr = [r.strasse, `${r.plz} ${r.ort ?? ""}${r.ortsteil ? " " + r.ortsteil : ""}`]
+    .filter(Boolean).join(", ");
+  const gmaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adr)}`;
+  return (
+    <Button variant="outline" size="sm" asChild>
+      <a href={gmaps} target="_blank" rel="noopener noreferrer">
+        <MapPin className="size-3 mr-1" />
+        Google Maps
+      </a>
+    </Button>
   );
 };
 
@@ -818,6 +858,7 @@ const BaurechtCard = () => {
       setForm({
         bauerwartungsland: r.bauerwartungsland,
         bautraegerfrei: r.bautraegerfrei,
+        erbbaurecht: r.erbbaurecht,
         grz: r.grz ?? "",
         gfz: r.gfz ?? "",
         vollgeschosse: r.vollgeschosse ?? "",
@@ -853,6 +894,7 @@ const BaurechtCard = () => {
     const patch: any = {
       bauerwartungsland: form.bauerwartungsland,
       bautraegerfrei: form.bautraegerfrei,
+      erbbaurecht: form.erbbaurecht,
       grz: numOrNull(form.grz),
       gfz: numOrNull(form.gfz),
       vollgeschosse: intOrNull(form.vollgeschosse),
@@ -969,6 +1011,12 @@ const BaurechtCard = () => {
                 <span className="text-muted-foreground">Erschließung</span>
                 <span>{r.erschliessung ?? "—"}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Erbbaurecht</span>
+                <span>
+                  {r.erbbaurecht === true ? "ja" : r.erbbaurecht === false ? "nein" : "—"}
+                </span>
+              </div>
               <div className="flex justify-between col-span-2 items-center">
                 <span className="text-muted-foreground">Baubarkeit</span>
                 <BaubarkeitChips />
@@ -1078,6 +1126,8 @@ const BaurechtCard = () => {
               (v) => setForm({ ...form, bpl_vorhanden: v }))}
             {triState("§34 BauGB", form.paragraph_34,
               (v) => setForm({ ...form, paragraph_34: v }))}
+            {triState("Erbbaurecht", form.erbbaurecht,
+              (v) => setForm({ ...form, erbbaurecht: v }))}
             <div className="flex gap-2 pt-2">
               <Button size="sm" onClick={save} disabled={isPending}>
                 <Save className="size-4 mr-1" /> Speichern
