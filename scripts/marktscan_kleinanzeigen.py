@@ -383,19 +383,32 @@ def parse_flaeche(txt: str | None) -> float | None:
 
 def parse_plz_ort(ort_str: str) -> tuple[str | None, str | None, str | None]:
     """'14532 Kleinmachnow' → ('14532', 'Kleinmachnow', None).
-       '15827 Blankenfelde-Mahlow' → ('15827', 'Blankenfelde-Mahlow', None)."""
+       '15827 Blankenfelde-Mahlow' → ('15827', 'Blankenfelde-Mahlow', None).
+       '15741 Bestensee OT Pätz' → ('15741', 'Bestensee', 'Pätz').
+       '15741 Brandenburg - Bestensee' → ('15741', 'Bestensee', None)."""
     if not ort_str:
         return None, None, None
     ort_str = ort_str.strip()
-    m = re.match(r'^(\d{5})\s+(.+?)$', ort_str)
+    m = re.match(r"^(\d{5})\s+(.+?)$", ort_str)
     if not m:
         return None, ort_str, None
     plz = m.group(1)
     rest = m.group(2).strip()
-    # Manchmal: "Stadt - Ortsteil"
+    # "Brandenburg - Bestensee" → Bestensee (Bundesland-Präfix abschneiden)
+    rest = re.sub(
+        r"^(Brandenburg|Berlin|Mecklenburg-Vorpommern|Sachsen|Sachsen-Anhalt)\s*-\s*",
+        "",
+        rest,
+    )
+    # OT-Token: "Stadt OT Ortsteil" oder "Stadt, OT Ortsteil"
+    m_ot = re.search(r"^(.+?)\s*[,]?\s*OT\s+(.+)$", rest, re.IGNORECASE)
+    if m_ot:
+        return plz, m_ot.group(1).strip(), m_ot.group(2).strip()
+    # Fallback: "Stadt - Ortsteil"
     if " - " in rest:
         ort, ortsteil = rest.split(" - ", 1)
         return plz, ort.strip(), ortsteil.strip()
+    # Sonst: alles ist Ort
     return plz, rest, None
 
 
@@ -622,6 +635,41 @@ def upload_images(kid: int, image_urls: list[str], referer: str) -> tuple[str | 
 
 
 
+
+def nominatim_geocode(query: str) -> tuple[float, float] | None:
+    """OSM-Nominatim für freie Geocoding-Anfragen. Rate-Limit 1 req/sec,
+    daher sleep nach jedem Call."""
+    if not query:
+        return None
+    try:
+        url = (
+            "https://nominatim.openstreetmap.org/search?"
+            + urllib.parse.urlencode({
+                "q": query,
+                "format": "json",
+                "limit": "1",
+                "countrycodes": "de",
+                "addressdetails": "0",
+            })
+        )
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": "persiusufer-crm/1.0 (alex@persiusufer.de)",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as r:
+            data = json.loads(r.read())
+        time.sleep(1.0)  # rate-limit
+        if not data:
+            return None
+        return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception as e:
+        log(f"    Nominatim fail: {e}")
+        return None
+
+
 def parse_baurecht(beschreibung: str | None) -> dict:
     """Heuristik-Parser für Baurecht-Felder aus dem Beschreibungstext."""
     if not beschreibung:
@@ -740,6 +788,17 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
             if v is not None and v != "":
                 baurecht[k] = v
         baurecht["ki_analyse_at"] = datetime.now(timezone.utc).isoformat()
+
+    # Geocoding: Wenn locality_full eine Straße+Hausnummer enthält → Nominatim
+    geo_lat, geo_lon = None, None
+    if locality_full and re.search(
+        r"(?:straße|strasse|str\.?|weg|allee|platz|gasse|chaussee|ring|damm|ufer|hof|steig)\s+\d",
+        locality_full,
+        re.IGNORECASE,
+    ):
+        coords = nominatim_geocode(locality_full)
+        if coords:
+            geo_lat, geo_lon = coords
     # Roher Snapshot der Detail-Page in den Cache — bei Parser-Bugs später
     # lokal nach-parsbar, ohne kleinanzeigen.de erneut zu treffen.
     details_raw = {
@@ -803,6 +862,10 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
         "risiken": baurecht.get("risiken"),
         "ki_analyse_at": baurecht.get("ki_analyse_at"),
+        "lat": geo_lat,
+        "lon": geo_lon,
+        "geocoded_at": datetime.now(timezone.utc).isoformat() if geo_lat else None,
+        "geocode_quelle": "nominatim" if geo_lat else None,
         "last_seen_at": datetime.now(timezone.utc).isoformat(),
     }
 

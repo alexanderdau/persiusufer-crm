@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
-import { MapContainer, TileLayer, GeoJSON, Tooltip } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, Tooltip, CircleMarker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
+type MarkerData = {
+  kid: number;
+  title: string;
+  lat: number;
+  lon: number;
+  preis_eur: number | null;
+  flaeche_qm: number | null;
+  bauerwartungsland: boolean | null;
+};
 type Aggregate = { plz: string; count: number; sumFlaeche: number; pricesPerSqm: number[] };
 
 const formatEur = (v: number | null | undefined) =>
@@ -37,6 +46,7 @@ const BaugrundstueckStatistik = () => {
   const [loading, setLoading] = useState(true);
   // Default-Filter: kleine Garten-Parzellen ausschließen (verzerren €/m²)
   const [minFlaeche, setMinFlaeche] = useState<number>(300);
+  const [markers, setMarkers] = useState<MarkerData[]>([]);
 
   // Filter aus URL übernehmen (gleiche Keys wie List)
   const dbFilter = useMemo(() => {
@@ -113,6 +123,23 @@ const BaugrundstueckStatistik = () => {
       }
       setAgg(map);
       setLoading(false);
+
+      // Marker für Inserate mit Geokoordinaten
+      let mq = sb
+        .from("kleinanzeigen_grundstueck")
+        .select("kid, title, lat, lon, preis_eur, flaeche_qm, bauerwartungsland")
+        .not("lat", "is", null)
+        .not("lon", "is", null)
+        .limit(2000);
+      for (const [k, v] of Object.entries(dbFilter)) {
+        if (k.includes("@gte")) mq = mq.gte(k.split("@")[0], v as any);
+        else if (k.includes("@lte")) mq = mq.lte(k.split("@")[0], v as any);
+        else if (k.includes("@like")) mq = mq.like(k.split("@")[0], String(v).replace(/\*/g, "%"));
+        else mq = mq.eq(k, v as any);
+      }
+      const { data: mdata } = await mq;
+      if (cancelled) return;
+      setMarkers((mdata as MarkerData[]) ?? []);
     })();
     return () => {
       cancelled = true;
@@ -248,6 +275,58 @@ const BaugrundstueckStatistik = () => {
                 style={styleFn as any}
                 onEachFeature={onEachFeature}
               />
+              {markers.map((m) => (
+                <CircleMarker
+                  key={m.kid}
+                  center={[m.lat, m.lon]}
+                  radius={6}
+                  pathOptions={{
+                    fillColor: m.bauerwartungsland ? "#f59e0b" : "#dc2626",
+                    color: "white",
+                    weight: 1.5,
+                    fillOpacity: 0.95,
+                  }}
+                >
+                  <Tooltip direction="top" offset={[0, -6]}>
+                    <strong>{m.title}</strong>
+                    <br />
+                    {m.flaeche_qm ? `${Math.round(m.flaeche_qm)} m²` : "?"}
+                    {m.preis_eur ? ` · ${formatEur(m.preis_eur)}` : ""}
+                    <br />
+                    <span style={{ fontSize: 10, color: "#6b7280" }}>
+                      Klick: Inserat öffnen
+                    </span>
+                  </Tooltip>
+                  <Popup>
+                    <div style={{ minWidth: 180 }}>
+                      <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                        {m.title}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#444" }}>
+                        {m.flaeche_qm ? `${Math.round(m.flaeche_qm)} m²` : ""}
+                        {m.preis_eur ? ` · ${formatEur(m.preis_eur)}` : ""}
+                      </div>
+                      {m.bauerwartungsland && (
+                        <div style={{ fontSize: 11, color: "#b45309", marginTop: 4 }}>
+                          Bauerwartungsland
+                        </div>
+                      )}
+                      <a
+                        href={`#/kleinanzeigen_grundstueck/${m.kid}/show`}
+                        style={{
+                          display: "inline-block",
+                          marginTop: 8,
+                          fontSize: 12,
+                          color: "#2563eb",
+                          textDecoration: "underline",
+                        }}
+                      >
+                        Inserat öffnen →
+                      </a>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              ))}
             </MapContainer>
           )}
         </CardContent>
@@ -276,8 +355,19 @@ const BaugrundstueckStatistik = () => {
               </div>
             ))}
           </div>
+          <div className="mt-3 pt-3 border-t flex flex-wrap gap-3 text-xs items-center">
+            <span className="text-muted-foreground">Marker:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-3 rounded-full bg-red-600 border border-white" />
+              <span>Baureifes Grundstück mit bekannter Adresse</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block size-3 rounded-full bg-amber-500 border border-white" />
+              <span>Bauerwartungsland</span>
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Klick auf ein PLZ-Polygon öffnet die gefilterte Liste.
+            Klick auf PLZ-Polygon → gefilterte Liste · Klick auf Marker → Inserat-Detail
           </p>
         </CardContent>
       </Card>
