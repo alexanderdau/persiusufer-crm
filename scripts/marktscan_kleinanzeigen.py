@@ -785,6 +785,17 @@ Antwort nur als JSON-Objekt, keine Erklärungen."""
         return None
 
 
+
+def _map_provision(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    low = raw.strip().lower()
+    if "keine" in low:
+        return "ohne"
+    if "mit" in low and "provision" in low:
+        return "mit"
+    return raw
+
 def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
     plz, ort, ortsteil = parse_plz_ort(item.ort_str)
     preis_eur, preis_vb = parse_price(item.price_str or detail.price_str)
@@ -855,7 +866,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "state_abbr": "BB",
         "grundstuecksart": detail.details.get("Grundstücksart"),
         "angebotsart": detail.details.get("Angebotsart"),
-        "provision": detail.details.get("Provision"),
+        "provision": _map_provision(detail.details.get("Provision")),
         "tags": item.tags,
         "status": status,
         "inserat_erstellt": detail.created_date,

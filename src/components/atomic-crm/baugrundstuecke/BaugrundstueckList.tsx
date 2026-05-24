@@ -322,11 +322,11 @@ const Sidebar = () => {
           <FilterCategory label="Provision">
             <ToggleFilterButton
               label="Ohne Provision"
-              value={{ provision: "Keine zusätzliche Käuferprovision" }}
+              value={{ provision: "ohne" }}
             />
             <ToggleFilterButton
               label="Mit Provision"
-              value={{ provision: "Mit Provision" }}
+              value={{ provision: "mit" }}
             />
           </FilterCategory>
         </div>
