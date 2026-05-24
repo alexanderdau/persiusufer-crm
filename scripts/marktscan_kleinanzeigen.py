@@ -1006,7 +1006,13 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "paragraph_34": baurecht.get("paragraph_34"),
         "provision_satz_pct": baurecht.get("provision_satz_pct"),
         "baubarkeit_typ": baurecht.get("baubarkeit_typ"),
-        "grundflaeche_qm": baurecht.get("grundflaeche_qm"),
+        "grundflaeche_qm": (
+            None
+            if baurecht.get("grundflaeche_qm") is None
+            or (flaeche is not None and baurecht.get("grundflaeche_qm") >= flaeche * 0.95)
+            or baurecht.get("grz") is None
+            else baurecht.get("grundflaeche_qm")
+        ),
         "baufeld_qm": baurecht.get("baufeld_qm"),
         "wohnflaeche_qm": baurecht.get("wohnflaeche_qm"),
         "bautraegerfrei": baurecht.get("bautraegerfrei"),
