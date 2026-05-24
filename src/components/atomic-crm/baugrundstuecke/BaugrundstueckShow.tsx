@@ -1294,6 +1294,12 @@ const ShowBody = () => {
                   : "—"}
               </span>
             </div>
+            {r.anbieter_objekt_id && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Objekt-ID</span>
+                <span className="font-mono text-xs">{r.anbieter_objekt_id}</span>
+              </div>
+            )}
             {r.kontakt_id && (
               <div className="pt-2 border-t mt-2">
                 <Button variant="outline" size="sm" asChild className="w-full">

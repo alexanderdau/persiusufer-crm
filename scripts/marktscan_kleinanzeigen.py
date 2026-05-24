@@ -301,6 +301,14 @@ RE_BPLAN_VORHANDEN = re.compile(
     r"§\s*30\s+BauGB",
     re.IGNORECASE,
 )
+RE_ANBIETER_OBJ_ID = re.compile(
+    r"(?:Objekt[- ]?(?:Nr\.?|Nummer|ID)|Obj(?:ekt)?[- ]?ID|"
+    r"Referenz(?:[- ]?Nr\.?)?|Maklerobjekt|Auftrags[- ]?(?:Nr\.?|nummer)|"
+    r"Immobilien[- ]?ID|Exposé[- ]?Nr\.?|Expose[- ]?Nr\.?)"
+    r"\s*[:.#]?\s*([A-Za-z0-9][A-Za-z0-9.\-/_]{2,40})",
+    re.IGNORECASE,
+)
+
 RE_ERBBAURECHT = re.compile(
     r"\bErbbaurecht\b|\bErbpacht\b|\bErbbau(?:zins|berechtigt)?\b",
     re.IGNORECASE,
@@ -870,6 +878,12 @@ def parse_baurecht(beschreibung: str | None) -> dict:
     # Erbbaurecht
     if RE_ERBBAURECHT.search(b):
         out["erbbaurecht"] = True
+    # Anbieter-Objekt-ID
+    m = RE_ANBIETER_OBJ_ID.search(b)
+    if m:
+        val = m.group(1).strip()
+        if val and val.lower() not in ("siehe", "anfrage", "auf", "im"):
+            out["anbieter_objekt_id"] = val
     # Provisionssatz aus Beschreibung
     m = RE_PROV_SATZ.search(b)
     if m:
@@ -1071,6 +1085,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "wohnflaeche_qm": baurecht.get("wohnflaeche_qm"),
         "bautraegerfrei": baurecht.get("bautraegerfrei"),
         "erbbaurecht": baurecht.get("erbbaurecht"),
+        "anbieter_objekt_id": baurecht.get("anbieter_objekt_id"),
         "gemarkung": baurecht.get("gemarkung"),
         "flur": baurecht.get("flur"),
         "flurstueck": baurecht.get("flurstueck"),
