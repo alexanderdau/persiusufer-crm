@@ -1004,12 +1004,6 @@ const BaurechtCard = () => {
                 <span>{r.teilbar === true ? "ja" : r.teilbar === false ? "nein" : "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">B-Plan</span>
-                <span>
-                  {r.bpl_vorhanden ? r.bpl_nummer || "vorhanden" : r.bpl_vorhanden === false ? "—" : "?"}
-                </span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-muted-foreground">Erschließung</span>
                 <span>{r.erschliessung ?? "—"}</span>
               </div>
@@ -1073,6 +1067,18 @@ const BaurechtCard = () => {
                       Außenbereich
                     </Badge>
                   ) : r.paragraph_35 === false ? "nein" : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-muted-foreground">B-Plan (§30)</span>
+                <span>
+                  {r.bpl_vorhanden
+                    ? (
+                      <Badge variant="outline" className="border-blue-500 text-blue-700 bg-blue-50">
+                        {r.bpl_nummer || "vorhanden"}
+                      </Badge>
+                    )
+                    : r.bpl_vorhanden === false ? "nein" : "—"}
                 </span>
               </div>
             </div>
