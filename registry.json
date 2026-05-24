@@ -834,6 +834,10 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/baugrundstuecke/BaugrundstueckStatistik.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/baugrundstuecke/BaugrundstueckShow.tsx",
           "type": "registry:component"
         },

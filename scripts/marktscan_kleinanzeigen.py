@@ -54,8 +54,7 @@ BUCKET = "kleinanzeigen-bilder"
 BASE = "https://www.kleinanzeigen.de"
 # Default-Sortierung (Empfohlen)
 LIST_TPL = (
-    "{base}/s-grundstuecke-garten/baugrundstueck"
-    "/anbieter:gewerblich,privat/brandenburg/seite:{n}"
+    "{base}/s-grundstuecke-garten/baugrundstueck/brandenburg/seite:{n}"
     "/c207l7711+grundstuecke_garten.type_s:baugrundstueck"
 )
 LIST_TPL_PAGE1 = (
