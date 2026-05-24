@@ -1,13 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRecordContext, useUpdate, useNotify } from "ra-core";
 import { Show } from "@/components/admin/show";
 import {
   Copy,
   ExternalLink,
+  FileText,
   Heart,
+  Loader2,
   MapPin,
   TreePine,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { getSupabaseClient } from "../providers/supabase/supabase";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -214,6 +223,151 @@ const FavoritButton = () => {
   );
 };
 
+
+type Dokument = {
+  id: number;
+  kid: number;
+  idx: number;
+  dateiname: string;
+  pfad: string;
+  herkunft_url: string;
+  bytes: number | null;
+};
+
+const formatBytes = (n?: number | null) => {
+  if (!n) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+};
+
+const DokumenteCard = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const [docs, setDocs] = useState<Dokument[] | null>(null);
+  const [viewing, setViewing] = useState<Dokument | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [urlLoading, setUrlLoading] = useState(false);
+  const notify = useNotify();
+
+  useEffect(() => {
+    if (!r?.kid) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await getSupabaseClient()
+        .from("kleinanzeigen_dokumente")
+        .select("*")
+        .eq("kid", r.kid)
+        .order("idx");
+      if (cancelled) return;
+      if (error) {
+        notify(`Dokumente: ${error.message}`, { type: "error" });
+        setDocs([]);
+      } else {
+        setDocs((data as Dokument[]) ?? []);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [r?.kid, notify]);
+
+  useEffect(() => {
+    if (!viewing) {
+      setSignedUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setUrlLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await getSupabaseClient()
+          .storage.from("kleinanzeigen-dokumente")
+          .createSignedUrl(viewing.pfad, 3600);
+        if (cancelled) return;
+        if (error || !data?.signedUrl) throw error;
+        setSignedUrl(data.signedUrl);
+      } catch (e: any) {
+        if (!cancelled)
+          notify(`Konnte Dokument nicht laden: ${e?.message ?? e}`, {
+            type: "error",
+          });
+      } finally {
+        if (!cancelled) setUrlLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewing, notify]);
+
+  if (docs === null) {
+    return (
+      <div className="text-sm text-muted-foreground flex items-center gap-2">
+        <Loader2 className="size-4 animate-spin" /> Lade Dokumente …
+      </div>
+    );
+  }
+  if (docs.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        Keine Dokumente in dieser Anzeige.
+      </div>
+    );
+  }
+  return (
+    <>
+      <ul className="divide-y rounded-md border bg-card">
+        {docs.map((d) => (
+          <li
+            key={d.id}
+            className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer"
+            onClick={() => setViewing(d)}
+          >
+            <FileText className="size-5 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{d.dateiname}</div>
+              <div className="text-xs text-muted-foreground">
+                {d.bytes ? formatBytes(d.bytes) : ""}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" tabIndex={-1}>
+              Öffnen
+            </Button>
+          </li>
+        ))}
+      </ul>
+
+      <Dialog
+        open={viewing !== null}
+        onOpenChange={(o) => {
+          if (!o) setViewing(null);
+        }}
+      >
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-4">
+          <DialogHeader>
+            <DialogTitle className="text-sm truncate">
+              {viewing?.dateiname}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 bg-muted rounded">
+            {urlLoading || !signedUrl ? (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                <Loader2 className="size-5 animate-spin mr-2" /> Lade PDF …
+              </div>
+            ) : (
+              <iframe
+                src={signedUrl}
+                title={viewing?.dateiname}
+                className="w-full h-full rounded"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
 const ShowBody = () => {
   const r = useRecordContext<Baugrundstueck>();
   if (!r) return null;
@@ -263,6 +417,17 @@ const ShowBody = () => {
             <p className="whitespace-pre-wrap text-sm">
               {r.beschreibung ?? "—"}
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Dokumente{r.dokumente_anzahl ? ` (${r.dokumente_anzahl})` : ""}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DokumenteCard />
           </CardContent>
         </Card>
       </div>
