@@ -310,9 +310,19 @@ RE_BAUBARKEIT = re.compile(
 RE_ORTSTEIL = re.compile(
     r"(?:Ortsteil|OT\b|\bO\.\s*T\.|im\s+Ortsteil)\s+([A-ZÄÖÜ][A-Za-zäöüßÄÖÜ-]{2,30})",
 )
-RE_BAUFELD = re.compile(
-    r"(?:Baufeld|bebaubare\s+(?:Grund)?fl(?:ä|ae)che|Grundfl(?:ä|ae)che)\s*(?:\(?GR\)?\s*)?(?:von|=|:)?\s*"
+RE_GRUNDFLAECHE = re.compile(
+    r"(?:Grundfl(?:ä|ae)che|\bGR\b)"
+    r"(?:\s*\(?GR\)?)?\s*(?:von|=|:)?\s*"
     r"(?:ca\.|circa|rd\.)?\s*(\d{2,5})\s*(?:m²|qm|m2)",
+    re.IGNORECASE,
+)
+RE_BAUFELD = re.compile(
+    r"Baufeld\s*(?:von|=|:)?\s*(?:ca\.|circa|rd\.)?\s*(\d{2,5})\s*(?:m²|qm|m2)",
+    re.IGNORECASE,
+)
+RE_WOHNFLAECHE = re.compile(
+    r"(?:Wohnfl(?:ä|ae)che|\bWFL\b|WF\b)\s*(?:von|=|:)?\s*"
+    r"(?:ca\.|circa|rd\.|bis\s+zu)?\s*(\d{2,5})\s*(?:m²|qm|m2)",
     re.IGNORECASE,
 )
 
@@ -769,11 +779,29 @@ def parse_baurecht(beschreibung: str | None) -> dict:
         ot = m.group(1).strip()
         if ot.lower() not in ("der","die","das","ein","eine","am","im"):
             out["ortsteil_ki"] = ot
-    # Bebaubare Fläche aus Beschreibung
+    # Grundfläche / Baufeld / Wohnfläche aus Beschreibung
+    m = RE_GRUNDFLAECHE.search(b)
+    if m:
+        try:
+            v = float(m.group(1))
+            if 10 <= v <= 5000:
+                out["grundflaeche_qm"] = v
+        except ValueError:
+            pass
     m = RE_BAUFELD.search(b)
     if m:
         try:
-            out["bebaubare_flaeche_qm"] = float(m.group(1))
+            v = float(m.group(1))
+            if 10 <= v <= 5000:
+                out["baufeld_qm"] = v
+        except ValueError:
+            pass
+    m = RE_WOHNFLAECHE.search(b)
+    if m:
+        try:
+            v = float(m.group(1))
+            if 20 <= v <= 5000:
+                out["wohnflaeche_qm"] = v
         except ValueError:
             pass
     # Provisionssatz aus Beschreibung
@@ -949,7 +977,9 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "paragraph_34": baurecht.get("paragraph_34"),
         "provision_satz_pct": baurecht.get("provision_satz_pct"),
         "baubarkeit_typ": baurecht.get("baubarkeit_typ"),
-        "bebaubare_flaeche_qm": baurecht.get("bebaubare_flaeche_qm"),
+        "grundflaeche_qm": baurecht.get("grundflaeche_qm"),
+        "baufeld_qm": baurecht.get("baufeld_qm"),
+        "wohnflaeche_qm": baurecht.get("wohnflaeche_qm"),
         "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
         "risiken": baurecht.get("risiken"),
         "ki_analyse_at": baurecht.get("ki_analyse_at"),

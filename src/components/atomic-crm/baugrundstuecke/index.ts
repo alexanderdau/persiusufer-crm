@@ -50,6 +50,9 @@ export type Baugrundstueck = {
   provision_satz_pct?: number | null;
   baubarkeit_typ?: string | null;
   bebaubare_flaeche_qm?: number | null;
+  grundflaeche_qm?: number | null;
+  baufeld_qm?: number | null;
+  wohnflaeche_qm?: number | null;
   bebaubarkeit_kurz?: string | null;
   risiken?: string[] | null;
   ki_analyse_at?: string | null;
