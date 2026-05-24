@@ -301,13 +301,12 @@ const BaugrundstueckList = () => {
         <DataTable.Col label="Ort">
           <OrtCell />
         </DataTable.Col>
-        <DataTable.Col
+        <DataTable.Col<Baugrundstueck>
           source="flaeche_qm"
           label="Fläche"
           className="text-right tabular-nums"
-        >
-          {(r: Baugrundstueck) => formatQm(r.flaeche_qm)}
-        </DataTable.Col>
+          render={(r) => formatQm(r.flaeche_qm)}
+        />
         <DataTable.Col
           source="preis_eur"
           label="Preis"
@@ -315,18 +314,17 @@ const BaugrundstueckList = () => {
         >
           <PreisCell />
         </DataTable.Col>
-        <DataTable.Col
+        <DataTable.Col<Baugrundstueck>
           source="preis_pro_qm"
           label="€/m²"
           className="text-right tabular-nums"
-        >
-          {(r: Baugrundstueck) =>
-            r.preis_pro_qm ? formatEur(r.preis_pro_qm) : "—"
-          }
-        </DataTable.Col>
-        <DataTable.Col source="last_seen_at" label="Gesehen">
-          {(r: Baugrundstueck) => formatDate(r.last_seen_at)}
-        </DataTable.Col>
+          render={(r) => (r.preis_pro_qm ? formatEur(r.preis_pro_qm) : "—")}
+        />
+        <DataTable.Col<Baugrundstueck>
+          source="last_seen_at"
+          label="Gesehen"
+          render={(r) => formatDate(r.last_seen_at)}
+        />
         <DataTable.Col label="Status" disableSort>
           <StatusBadge />
         </DataTable.Col>
