@@ -119,6 +119,20 @@ export const ResponsiveFilters = ({
       <FilterLiveForm>
         <SearchInput source={source} {...otherSearchInputProps} />
       </FilterLiveForm>
+      {activeFiltersCount > 0 && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleClearFilters}
+          className="justify-start text-xs text-muted-foreground hover:text-foreground -mt-2 self-start h-7"
+        >
+          {translate("ra.navigation.clear_filters", { _: "Filter zurücksetzen" })}
+          <Badge variant="secondary" className="ml-2 h-4 px-1.5 text-[10px]">
+            {activeFiltersCount}
+          </Badge>
+        </Button>
+      )}
       {children}
     </div>
   );
