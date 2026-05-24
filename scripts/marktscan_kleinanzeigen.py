@@ -186,11 +186,27 @@ def sb_request(method: str, path: str, *, body: bytes | None = None,
     if extra_headers:
         headers.update(extra_headers)
     req = urllib.request.Request(url, data=body, headers=headers, method=method)
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return r.status, r.read()
-    except urllib.error.HTTPError as e:
-        return e.code, e.read()
+    last_err: Exception | None = None
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return r.status, r.read()
+        except urllib.error.HTTPError as e:
+            # 5xx werden retried, alles andere durchgereicht
+            if 500 <= e.code < 600 and attempt < 3:
+                last_err = e
+                time.sleep(2 ** attempt)
+                continue
+            return e.code, e.read()
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            last_err = e
+            if attempt < 3:
+                time.sleep(2 ** attempt)
+                continue
+            log(f"  sb_request {method} {path} → 4× timeout/error: {e!r}")
+            return 599, b""
+    # unreachable, aber für Typcheck
+    return 599, str(last_err).encode() if last_err else b""
 
 
 def sb_select(path: str) -> Any:
