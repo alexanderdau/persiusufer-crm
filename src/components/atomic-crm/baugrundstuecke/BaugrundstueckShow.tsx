@@ -806,6 +806,285 @@ const BaubarkeitChips = () => {
   );
 };
 
+
+const BaurechtCard = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const notify = useNotify();
+  const [update, { isPending }] = useUpdate();
+  const [edit, setEdit] = useState(false);
+  const [form, setForm] = useState<any>({});
+  useEffect(() => {
+    if (r) {
+      setForm({
+        bauerwartungsland: r.bauerwartungsland,
+        bautraegerfrei: r.bautraegerfrei,
+        grz: r.grz ?? "",
+        gfz: r.gfz ?? "",
+        vollgeschosse: r.vollgeschosse ?? "",
+        bpl_vorhanden: r.bpl_vorhanden ?? false,
+        bpl_nummer: r.bpl_nummer ?? "",
+        paragraph_34: r.paragraph_34 ?? false,
+        erschliessung: r.erschliessung ?? "",
+        teilbar: r.teilbar ?? false,
+        baufeld_qm: r.baufeld_qm ?? "",
+        grundflaeche_qm: r.grundflaeche_qm ?? "",
+        wohnflaeche_qm: r.wohnflaeche_qm ?? "",
+        gemarkung: r.gemarkung ?? "",
+        flur: r.flur ?? "",
+        flurstueck: r.flurstueck ?? "",
+        bebaubarkeit_kurz: r.bebaubarkeit_kurz ?? "",
+      });
+    }
+  }, [r]);
+  if (!r) return null;
+  const fmtQm = (v?: number | null) =>
+    v ? `${new Intl.NumberFormat("de-DE").format(Math.round(v))} m²` : "—";
+  const numOrNull = (v: any) => {
+    if (v === "" || v === null || v === undefined) return null;
+    const n = parseFloat(String(v).replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  };
+  const intOrNull = (v: any) => {
+    const n = numOrNull(v);
+    return n === null ? null : Math.round(n);
+  };
+  const strOrNull = (v: any) => (v && String(v).trim() ? String(v).trim() : null);
+  const save = () => {
+    const patch: any = {
+      bauerwartungsland: form.bauerwartungsland,
+      bautraegerfrei: form.bautraegerfrei,
+      grz: numOrNull(form.grz),
+      gfz: numOrNull(form.gfz),
+      vollgeschosse: intOrNull(form.vollgeschosse),
+      bpl_vorhanden: form.bpl_vorhanden,
+      bpl_nummer: strOrNull(form.bpl_nummer),
+      paragraph_34: form.paragraph_34,
+      erschliessung: strOrNull(form.erschliessung),
+      teilbar: form.teilbar,
+      baufeld_qm: numOrNull(form.baufeld_qm),
+      grundflaeche_qm: numOrNull(form.grundflaeche_qm),
+      wohnflaeche_qm: numOrNull(form.wohnflaeche_qm),
+      gemarkung: strOrNull(form.gemarkung),
+      flur: strOrNull(form.flur),
+      flurstueck: strOrNull(form.flurstueck),
+      bebaubarkeit_kurz: strOrNull(form.bebaubarkeit_kurz),
+    };
+    update(
+      "kleinanzeigen_grundstueck",
+      { id: r.id, data: patch, previousData: r },
+      {
+        onSuccess: () => {
+          notify("Baurecht gespeichert", { type: "success" });
+          setEdit(false);
+        },
+        onError: (e: any) =>
+          notify(`Fehler: ${e?.message ?? e}`, { type: "error" }),
+      },
+    );
+  };
+  const triState = (
+    label: string,
+    val: boolean | null | undefined,
+    onChange: (v: boolean | null) => void,
+  ) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-muted-foreground w-32">{label}</span>
+      <div className="flex gap-1">
+        {[
+          { v: true, l: "ja" },
+          { v: false, l: "nein" },
+          { v: null, l: "—" },
+        ].map((opt) => (
+          <button
+            key={opt.l}
+            type="button"
+            className={
+              "text-[11px] px-2 py-0.5 rounded border " +
+              (val === opt.v
+                ? "bg-slate-700 text-white border-slate-700"
+                : "bg-white border-slate-300 hover:bg-slate-50")
+            }
+            onClick={() => onChange(opt.v)}
+          >
+            {opt.l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            Baurecht
+            {r.bauerwartungsland && (
+              <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50">
+                Bauerwartungsland
+              </Badge>
+            )}
+            {r.baureif && !r.bauerwartungsland && (
+              <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
+                Baureif
+              </Badge>
+            )}
+          </CardTitle>
+          {!edit && (
+            <Button variant="ghost" size="sm" onClick={() => setEdit(true)}>
+              <Edit2 className="size-4 mr-1" /> Bearbeiten
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm">
+        {!edit ? (
+          <>
+            {r.bebaubarkeit_kurz && (
+              <p className="italic text-muted-foreground">„{r.bebaubarkeit_kurz}"</p>
+            )}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">GRZ</span>
+                <span>{r.grz ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">GFZ</span>
+                <span>{r.gfz ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Vollgeschosse</span>
+                <span>{r.vollgeschosse ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Teilbar</span>
+                <span>{r.teilbar === true ? "ja" : r.teilbar === false ? "nein" : "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">B-Plan</span>
+                <span>
+                  {r.bpl_vorhanden ? r.bpl_nummer || "vorhanden" : r.bpl_vorhanden === false ? "—" : "?"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Erschließung</span>
+                <span>{r.erschliessung ?? "—"}</span>
+              </div>
+              <div className="flex justify-between col-span-2 items-center">
+                <span className="text-muted-foreground">Baubarkeit</span>
+                <BaubarkeitChips />
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Baufeld</span>
+                <span>{fmtQm(r.baufeld_qm)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Grundfläche (GR)</span>
+                <span>{fmtQm(r.grundflaeche_qm)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Wohnfläche (WFL)</span>
+                <span>{fmtQm(r.wohnflaeche_qm)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Gemarkung</span>
+                <span>{r.gemarkung ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Flur</span>
+                <span>{r.flur ?? "—"}</span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-muted-foreground">Flurstück</span>
+                <span className="font-mono text-xs">{r.flurstueck ?? "—"}</span>
+              </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-muted-foreground">§34 BauGB</span>
+                <span>
+                  {r.paragraph_34 ? (
+                    <Badge variant="outline" className="border-purple-500 text-purple-700 bg-purple-50">
+                      Angepasste Umgebungsbebauung
+                    </Badge>
+                  ) : ("—")}
+                </span>
+              </div>
+            </div>
+            {r.risiken && r.risiken.length > 0 && (
+              <div className="pt-2 border-t">
+                <div className="text-xs text-muted-foreground mb-1">Risiken (KI):</div>
+                <div className="flex flex-wrap gap-1">
+                  {r.risiken.map((rk) => (
+                    <Badge key={rk} variant="outline" className="border-red-500 text-red-700 bg-red-50">
+                      {rk}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {r.ki_analyse_at && (
+              <div className="text-[10px] text-muted-foreground pt-1">
+                KI-Analyse: {new Date(r.ki_analyse_at).toLocaleString("de-DE")}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Bebaubarkeit (Kurzbeschreibung, max. 200 Zeichen)"
+              value={form.bebaubarkeit_kurz}
+              onChange={(e) => setForm({ ...form, bebaubarkeit_kurz: e.target.value })}
+              rows={2}
+              maxLength={200}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input placeholder="GRZ (z.B. 0,4)" value={form.grz}
+                onChange={(e) => setForm({ ...form, grz: e.target.value })} />
+              <Input placeholder="GFZ (z.B. 0,8)" value={form.gfz}
+                onChange={(e) => setForm({ ...form, gfz: e.target.value })} />
+              <Input placeholder="Vollgeschosse" value={form.vollgeschosse}
+                onChange={(e) => setForm({ ...form, vollgeschosse: e.target.value })} />
+              <Input placeholder="Erschließung (voll/teilweise/unerschlossen)" value={form.erschliessung}
+                onChange={(e) => setForm({ ...form, erschliessung: e.target.value })} />
+              <Input placeholder="Baufeld m²" value={form.baufeld_qm}
+                onChange={(e) => setForm({ ...form, baufeld_qm: e.target.value })} />
+              <Input placeholder="Grundfläche GR m²" value={form.grundflaeche_qm}
+                onChange={(e) => setForm({ ...form, grundflaeche_qm: e.target.value })} />
+              <Input placeholder="Wohnfläche WFL m²" value={form.wohnflaeche_qm}
+                onChange={(e) => setForm({ ...form, wohnflaeche_qm: e.target.value })} />
+              <Input placeholder="B-Plan-Nummer" value={form.bpl_nummer}
+                onChange={(e) => setForm({ ...form, bpl_nummer: e.target.value })} />
+              <Input placeholder="Gemarkung" value={form.gemarkung}
+                onChange={(e) => setForm({ ...form, gemarkung: e.target.value })} />
+              <Input placeholder="Flur" value={form.flur}
+                onChange={(e) => setForm({ ...form, flur: e.target.value })} />
+              <Input placeholder="Flurstück (z.B. 123/45)" value={form.flurstueck}
+                onChange={(e) => setForm({ ...form, flurstueck: e.target.value })}
+                className="col-span-2" />
+            </div>
+            {triState("Bauerwartungsland", form.bauerwartungsland,
+              (v) => setForm({ ...form, bauerwartungsland: v }))}
+            {triState("Bauträgerfrei", form.bautraegerfrei,
+              (v) => setForm({ ...form, bautraegerfrei: v }))}
+            {triState("Teilbar", form.teilbar,
+              (v) => setForm({ ...form, teilbar: v }))}
+            {triState("B-Plan vorhanden", form.bpl_vorhanden,
+              (v) => setForm({ ...form, bpl_vorhanden: v }))}
+            {triState("§34 BauGB", form.paragraph_34,
+              (v) => setForm({ ...form, paragraph_34: v }))}
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" onClick={save} disabled={isPending}>
+                <Save className="size-4 mr-1" /> Speichern
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setEdit(false)} disabled={isPending}>
+                Abbrechen
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const ShowBody = () => {
   const r = useRecordContext<Baugrundstueck>();
   if (!r) return null;
@@ -926,138 +1205,7 @@ const ShowBody = () => {
         </Card>
 
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              Baurecht
-              {r.bauerwartungsland && (
-                <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50">
-                  Bauerwartungsland
-                </Badge>
-              )}
-              {r.baureif && !r.bauerwartungsland && (
-                <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
-                  Baureif
-                </Badge>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {r.bebaubarkeit_kurz && (
-              <p className="italic text-muted-foreground">
-                „{r.bebaubarkeit_kurz}"
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">GRZ</span>
-                <span>{r.grz ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">GFZ</span>
-                <span>{r.gfz ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Vollgeschosse</span>
-                <span>{r.vollgeschosse ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Teilbar</span>
-                <span>
-                  {r.teilbar === true ? "ja" : r.teilbar === false ? "nein" : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">B-Plan</span>
-                <span>
-                  {r.bpl_vorhanden ? r.bpl_nummer || "vorhanden" : r.bpl_vorhanden === false ? "—" : "?"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Erschließung</span>
-                <span>{r.erschliessung ?? "—"}</span>
-              </div>
-              <div className="flex justify-between col-span-2 items-center">
-                <span className="text-muted-foreground">Baubarkeit</span>
-                <BaubarkeitChips />
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Baufeld</span>
-                <span>
-                  {r.baufeld_qm
-                    ? `${new Intl.NumberFormat("de-DE").format(Math.round(r.baufeld_qm))} m²`
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Grundfläche (GR)</span>
-                <span>
-                  {r.grundflaeche_qm
-                    ? `${new Intl.NumberFormat("de-DE").format(Math.round(r.grundflaeche_qm))} m²`
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Wohnfläche (WFL)</span>
-                <span>
-                  {r.wohnflaeche_qm
-                    ? `${new Intl.NumberFormat("de-DE").format(Math.round(r.wohnflaeche_qm))} m²`
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Gemarkung</span>
-                <span>{r.gemarkung ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Flur</span>
-                <span>{r.flur ?? "—"}</span>
-              </div>
-              <div className="flex justify-between col-span-2">
-                <span className="text-muted-foreground">Flurstück</span>
-                <span className="font-mono text-xs">{r.flurstueck ?? "—"}</span>
-              </div>
-              <div className="flex justify-between col-span-2">
-                <span className="text-muted-foreground">§34 BauGB</span>
-                <span>
-                  {r.paragraph_34 ? (
-                    <Badge
-                      variant="outline"
-                      className="border-purple-500 text-purple-700 bg-purple-50"
-                    >
-                      Angepasste Umgebungsbebauung
-                    </Badge>
-                  ) : (
-                    "—"
-                  )}
-                </span>
-              </div>
-            </div>
-            {r.risiken && r.risiken.length > 0 && (
-              <div className="pt-2 border-t">
-                <div className="text-xs text-muted-foreground mb-1">
-                  Risiken (KI-Analyse):
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {r.risiken.map((rk) => (
-                    <Badge
-                      key={rk}
-                      variant="outline"
-                      className="border-red-500 text-red-700 bg-red-50"
-                    >
-                      {rk}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {r.ki_analyse_at && (
-              <div className="text-[10px] text-muted-foreground pt-1">
-                KI-Analyse: {new Date(r.ki_analyse_at).toLocaleString("de-DE")}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <BaurechtCard />
 
         <Card>
           <CardHeader>
