@@ -404,6 +404,10 @@ const Sidebar = () => {
               value={{ paragraph_34: true }}
             />
             <ToggleFilterButton
+              label="§35 Außenbereich"
+              value={{ paragraph_35: true }}
+            />
+            <ToggleFilterButton
               label="Bauträgerfrei"
               value={{ bautraegerfrei: true }}
             />

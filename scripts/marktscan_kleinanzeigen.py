@@ -327,6 +327,14 @@ RE_FLURSTUECK = re.compile(
     re.IGNORECASE,
 )
 
+RE_PARAGRAPH_35 = re.compile(
+    r"§\s*35\s*BauGB|"
+    r"nach\s+§\s*35\b|"
+    r"gem(?:äß|\.)\s*§\s*35\b|"
+    r"\bAu(?:ß|ss)enbereich\b",
+    re.IGNORECASE,
+)
+
 RE_BAUTRAEGER_FREI = re.compile(
     r"\bbautr(?:ä|ae)gerfrei\b|"
     r"\bohne\s+Bautr(?:ä|ae)ger(?:bindung)?\b|"
@@ -827,6 +835,9 @@ def parse_baurecht(beschreibung: str | None) -> dict:
     # §34 BauGB — Bebauung muss sich in nähere Umgebung einfügen
     if RE_PARAGRAPH_34.search(b):
         out["paragraph_34"] = True
+    # §35 BauGB — Außenbereich
+    if RE_PARAGRAPH_35.search(b):
+        out["paragraph_35"] = True
     # Baubarkeit-Typen (Array: alle gefundenen Optionen)
     types: set[str] = set()
     for m in RE_BAUBARKEIT.finditer(b):
@@ -1087,6 +1098,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "erschliessung": baurecht.get("erschliessung"),
         "teilbar": baurecht.get("teilbar"),
         "paragraph_34": baurecht.get("paragraph_34"),
+        "paragraph_35": baurecht.get("paragraph_35"),
         "provision_satz_pct": baurecht.get("provision_satz_pct"),
         "baubarkeit_typ": baurecht.get("baubarkeit_typ"),
         "grundflaeche_qm": (

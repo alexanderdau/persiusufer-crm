@@ -865,6 +865,7 @@ const BaurechtCard = () => {
         bpl_vorhanden: r.bpl_vorhanden ?? false,
         bpl_nummer: r.bpl_nummer ?? "",
         paragraph_34: r.paragraph_34 ?? false,
+        paragraph_35: r.paragraph_35,
         erschliessung: r.erschliessung ?? "",
         teilbar: r.teilbar ?? false,
         baufeld_qm: r.baufeld_qm ?? "",
@@ -901,6 +902,7 @@ const BaurechtCard = () => {
       bpl_vorhanden: form.bpl_vorhanden,
       bpl_nummer: strOrNull(form.bpl_nummer),
       paragraph_34: form.paragraph_34,
+      paragraph_35: form.paragraph_35,
       erschliessung: strOrNull(form.erschliessung),
       teilbar: form.teilbar,
       baufeld_qm: numOrNull(form.baufeld_qm),
@@ -1063,6 +1065,16 @@ const BaurechtCard = () => {
                   ) : ("—")}
                 </span>
               </div>
+              <div className="flex justify-between col-span-2">
+                <span className="text-muted-foreground">§35 BauGB</span>
+                <span>
+                  {r.paragraph_35 ? (
+                    <Badge variant="outline" className="border-amber-600 text-amber-800 bg-amber-50">
+                      Außenbereich
+                    </Badge>
+                  ) : r.paragraph_35 === false ? "nein" : "—"}
+                </span>
+              </div>
             </div>
             {r.risiken && r.risiken.length > 0 && (
               <div className="pt-2 border-t">
@@ -1126,6 +1138,8 @@ const BaurechtCard = () => {
               (v) => setForm({ ...form, bpl_vorhanden: v }))}
             {triState("§34 BauGB", form.paragraph_34,
               (v) => setForm({ ...form, paragraph_34: v }))}
+            {triState("§35 Außenbereich", form.paragraph_35,
+              (v) => setForm({ ...form, paragraph_35: v }))}
             {triState("Erbbaurecht", form.erbbaurecht,
               (v) => setForm({ ...form, erbbaurecht: v }))}
             <div className="flex gap-2 pt-2">

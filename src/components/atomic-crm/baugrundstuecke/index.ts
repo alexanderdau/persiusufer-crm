@@ -50,6 +50,7 @@ export type Baugrundstueck = {
   erschliessung?: string | null;
   teilbar?: boolean | null;
   paragraph_34?: boolean | null;
+  paragraph_35?: boolean | null;
   provision_satz_pct?: number | null;
   baubarkeit_typ?: string[] | null;
   bautraegerfrei?: boolean | null;
