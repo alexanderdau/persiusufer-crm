@@ -450,6 +450,10 @@ const ListSearch = () => {
   const initial =
     (filterValues.kid != null ? String(filterValues.kid) : null) ??
     (filterValues["plz@like"] as string | undefined)?.replace("*", "") ??
+    (filterValues["search_text@ilike"] as string | undefined)?.replaceAll(
+      "*",
+      "",
+    ) ??
     ((filterValues["title@ilike"] as string | undefined) ?? "").replaceAll(
       "*",
       "",
@@ -462,6 +466,7 @@ const ListSearch = () => {
       const v = q.trim();
       const base = { ...filterValues };
       delete (base as any)["title@ilike"];
+      delete (base as any)["search_text@ilike"];
       delete (base as any)["plz@like"];
       delete (base as any)["ort@ilike"];
       delete (base as any).kid;
@@ -475,7 +480,11 @@ const ListSearch = () => {
       } else if (/^\d{1,5}$/.test(v)) {
         setFilters({ ...base, "plz@like": v + "*" }, displayedFilters);
       } else {
-        setFilters({ ...base, "title@ilike": `*${v}*` }, displayedFilters);
+        // Volltext-Suche über title + anbieter_name + ort + ortsteil + strasse
+        setFilters(
+          { ...base, "search_text@ilike": `*${v.toLowerCase()}*` },
+          displayedFilters,
+        );
       }
     }, 300);
     return () => clearTimeout(t);
@@ -486,7 +495,7 @@ const ListSearch = () => {
     <div className="flex items-center gap-2 mb-3">
       <Input
         type="search"
-        placeholder="Titel, PLZ (z.B. 154) oder Anzeigen-ID (ab 6 Ziffern)…"
+        placeholder="Titel, Anbieter, Ort, PLZ (3–5) oder ID (≥6 Ziffern)…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         className="max-w-sm"
