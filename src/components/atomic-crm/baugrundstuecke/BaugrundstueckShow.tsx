@@ -982,18 +982,18 @@ const ShowBody = () => {
                 <BaubarkeitChips />
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Grundfläche (GR)</span>
-                <span>
-                  {r.grundflaeche_qm
-                    ? `${new Intl.NumberFormat("de-DE").format(Math.round(r.grundflaeche_qm))} m²`
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-muted-foreground">Baufeld</span>
                 <span>
                   {r.baufeld_qm
                     ? `${new Intl.NumberFormat("de-DE").format(Math.round(r.baufeld_qm))} m²`
+                    : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Grundfläche (GR)</span>
+                <span>
+                  {r.grundflaeche_qm
+                    ? `${new Intl.NumberFormat("de-DE").format(Math.round(r.grundflaeche_qm))} m²`
                     : "—"}
                 </span>
               </div>
