@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Edit2,
   Save,
+  Image as ImageIcon,
   Sparkles,
   Copy,
   ExternalLink,
@@ -66,6 +67,50 @@ const formatQm = (value?: number | null) =>
         Number(value),
       ) + " m²";
 
+
+
+const BildAnalyseButton = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const notify = useNotify();
+  const refresh = useRefresh();
+  const [running, setRunning] = useState(false);
+  if (!r) return null;
+  const done = !!r.bild_analyse_at;
+  const onClick = async () => {
+    setRunning(true);
+    try {
+      const { data, error } = await getSupabaseClient().functions.invoke(
+        "kleinanzeigen-bild-analyse",
+        { body: { kid: r.kid } },
+      );
+      if (error) {
+        notify(`Bildanalyse: ${error.message ?? error}`, { type: "error" });
+      } else if ((data as any)?.error) {
+        notify(`Bildanalyse: ${(data as any).error}`, { type: "error" });
+      } else {
+        const n = (data as any)?.bilder_analysiert ?? 0;
+        notify(`Bildanalyse abgeschlossen (${n} Bilder)`, { type: "success" });
+        refresh();
+      }
+    } catch (e: any) {
+      notify(`Bildanalyse-Fehler: ${e?.message ?? e}`, { type: "error" });
+    } finally {
+      setRunning(false);
+    }
+  };
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      disabled={running || !r.bilder_paths || r.bilder_paths.length === 0}
+      title="Inseratsbilder per Claude Vision auf Adresshinweise prüfen"
+    >
+      <ImageIcon className="size-4 mr-1.5" />
+      {running ? "Bildanalyse läuft …" : done ? "Bilder erneut" : "Bilder analysieren"}
+    </Button>
+  );
+};
 
 const KiAnalyseButton = () => {
   const r = useRecordContext<Baugrundstueck>();
@@ -496,8 +541,19 @@ const AdressBlock = () => {
                     <span>{bundesland}</span>
                   </div>
                 )}
+                {r.bild_strasse_hinweis && !r.strasse && (
+                  <div className="text-xs pt-1 border-t mt-1">
+                    <span className="text-muted-foreground">Bild-Hinweis: </span>
+                    <span className="text-emerald-700">{r.bild_strasse_hinweis}</span>
+                  </div>
+                )}
               </div>
             </div>
+            {r.bild_analyse_text && (
+              <div className="text-xs text-muted-foreground pt-2 border-t mt-2 whitespace-pre-wrap">
+                {r.bild_analyse_text}
+              </div>
+            )}
             <div className="pt-2">
               <MapsPille />
             </div>
@@ -1188,6 +1244,7 @@ const ShowBody = () => {
               </div>
               <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                 <KiAnalyseButton />
+                <BildAnalyseButton />
                 <Badge>
                   {BAUG_STATUSES.find((s) => s.value === r.status)?.label ??
                     r.status}
