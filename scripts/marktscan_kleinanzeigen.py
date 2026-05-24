@@ -1,0 +1,813 @@
+#!/usr/bin/env python3
+"""
+Marktscan kleinanzeigen.de — Brandenburg, Baugrundstücke, Kaufen.
+
+Pro Lauf:
+- Listing-Seiten 1..N abklappern bis Anzahl < 27 (letzte Seite)
+- Neue adids → Detail-Page parsen, Bilder lokal in Bucket spiegeln, INSERT
+- Bekannte adids → last_seen_at + Preis updaten
+- Nicht-mehr-gelistete adids → status='verschwunden'
+
+ENV:
+  SUPABASE_URL          z.B. https://ujiiaqvwpnniaasdhyrb.supabase.co
+  SUPABASE_SERVICE_KEY  Service-Role-Key
+  MAX_PAGES             optional, default 100
+  THROTTLE_MIN          optional, default 4.0
+  THROTTLE_MAX          optional, default 8.0
+"""
+from __future__ import annotations
+
+import json
+import os
+import random
+import re
+import sys
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import urllib.request
+import urllib.parse
+import urllib.error
+
+# ───────────────────────────────────────────────────────────────────────────
+# Konfiguration
+# ───────────────────────────────────────────────────────────────────────────
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
+SUPABASE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
+if not (SUPABASE_URL and SUPABASE_KEY):
+    sys.exit("ERROR: SUPABASE_URL + SUPABASE_SERVICE_KEY müssen gesetzt sein")
+
+MAX_PAGES = int(os.environ.get("MAX_PAGES", "100"))
+# Per-Inserat-Throttle (kleinanzeigen.de-Schonung zwischen Detail-Requests).
+# Default niedrig, weil wir pro Seite eh schon 10 s warten.
+THROTTLE_MIN = float(os.environ.get("THROTTLE_MIN", "1.0"))
+THROTTLE_MAX = float(os.environ.get("THROTTLE_MAX", "2.5"))
+# Per-Seite-Throttle (random 8-12 s zwischen Listing-Seiten)
+PAGE_THROTTLE_MIN = float(os.environ.get("PAGE_THROTTLE_MIN", "8.0"))
+PAGE_THROTTLE_MAX = float(os.environ.get("PAGE_THROTTLE_MAX", "12.0"))
+BUCKET = "kleinanzeigen-bilder"
+
+BASE = "https://www.kleinanzeigen.de"
+# Default-Sortierung (Empfohlen)
+LIST_TPL = (
+    "{base}/s-grundstuecke-garten/baugrundstueck"
+    "/anbieter:gewerblich,privat/brandenburg/seite:{n}"
+    "/c207l7711+grundstuecke_garten.type_s:baugrundstueck"
+)
+LIST_TPL_PAGE1 = (
+    "{base}/s-grundstuecke-garten/baugrundstueck/brandenburg"
+    "/c207l7711+grundstuecke_garten.type_s:baugrundstueck"
+)
+# Sortierung: Neueste zuerst (für since-Mode / Daily-Run)
+LIST_TPL_NEUESTE = (
+    "{base}/s-grundstuecke-garten/baugrundstueck/brandenburg"
+    "/sortierung:neueste/seite:{n}"
+    "/c207l7711+grundstuecke_garten.type_s:baugrundstueck"
+)
+LIST_TPL_NEUESTE_PAGE1 = (
+    "{base}/s-grundstuecke-garten/baugrundstueck/brandenburg"
+    "/sortierung:neueste"
+    "/c207l7711+grundstuecke_garten.type_s:baugrundstueck"
+)
+
+# SCAN_MODE = "full" (default — durch alle Seiten) | "since" (stop bei bekanntem Inserat)
+SCAN_MODE = os.environ.get("SCAN_MODE", "full")
+# Wenn since: nach wie vielen konsekutiv bekannten/älteren Inseraten wir abbrechen
+SINCE_STOP_AFTER = int(os.environ.get("SINCE_STOP_AFTER", "10"))
+
+UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) "
+    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15"
+)
+
+# LOG_DIR: per ENV oder Auto-Detect via Glob (Sandbox-Hostname wechselt)
+import glob as _glob
+_log_env = os.environ.get("LOG_DIR")
+if _log_env:
+    LOG_DIR = Path(_log_env)
+else:
+    _candidates = _glob.glob("/sessions/*/mnt/Grundst*/Versteigerungen/_logs") + \
+                  _glob.glob("/sessions/*/mnt/Grundst*/Versteigerungen")
+    LOG_DIR = Path(_candidates[0]) if _candidates else Path("/tmp")
+    if LOG_DIR.name == "Versteigerungen":
+        LOG_DIR = LOG_DIR / "_logs"
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = LOG_DIR / f"marktscan_kleinanzeigen_{datetime.now().strftime('%Y-%m-%d_%H%M')}.log"
+
+
+def log(msg: str) -> None:
+    line = f"[{datetime.now().strftime('%H:%M:%S')}] {msg}"
+    print(line, flush=True)
+    with LOG_FILE.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# HTTP
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def http_get(url: str, *, referer: str | None = None, retries: int = 2) -> tuple[int, bytes]:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": UA,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/*;q=0.8,*/*;q=0.5",
+            "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": referer or "https://www.kleinanzeigen.de/",
+            "Connection": "keep-alive",
+        },
+    )
+    last_err = None
+    for attempt in range(retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return r.status, r.read()
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 503):
+                log(f"  WAF {e.code} on {url} — backoff 60 s")
+                time.sleep(60)
+                continue
+            return e.code, b""
+        except Exception as e:
+            last_err = e
+            time.sleep(5)
+    log(f"  FAIL after retries: {url} ({last_err})")
+    return 0, b""
+
+
+def throttle() -> None:
+    time.sleep(random.uniform(THROTTLE_MIN, THROTTLE_MAX))
+
+
+def page_throttle() -> None:
+    time.sleep(random.uniform(PAGE_THROTTLE_MIN, PAGE_THROTTLE_MAX))
+
+
+def fetch_aufrufe(adid: int, referer: str) -> int | None:
+    """Ruft den Aufrufe-Zähler über s-vac-inc-get.json ab.
+    Achtung: der Endpoint inkrementiert den Counter — daher pro Marktscan-
+    Lauf höchstens einmal pro Inserat aufrufen.
+    """
+    try:
+        url = f"https://www.kleinanzeigen.de/s-vac-inc-get.json?adId={adid}"
+        req = urllib.request.Request(
+            url,
+            headers={
+                "User-Agent": UA,
+                "Accept": "application/json",
+                "Referer": referer,
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+        return int(data.get("numVisits", 0))
+    except Exception as e:
+        log(f"    aufrufe-fetch fail kid={adid}: {e}")
+        return None
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Supabase REST helpers
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def sb_request(method: str, path: str, *, body: bytes | None = None,
+               extra_headers: dict[str, str] | None = None) -> tuple[int, bytes]:
+    url = f"{SUPABASE_URL}/{path.lstrip('/')}"
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": "application/json",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+    req = urllib.request.Request(url, data=body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return r.status, r.read()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read()
+
+
+def sb_select(path: str) -> Any:
+    code, data = sb_request("GET", f"rest/v1/{path}")
+    if code >= 300:
+        log(f"  Supabase GET {path} → {code} {data[:200]!r}")
+        return None
+    return json.loads(data)
+
+
+def sb_upsert(table: str, rows: list[dict[str, Any]]) -> int:
+    code, _ = sb_request(
+        "POST",
+        f"rest/v1/{table}?on_conflict=kid",
+        body=json.dumps(rows).encode("utf-8"),
+        extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"},
+    )
+    return code
+
+
+def sb_update(table: str, filter_kv: str, patch: dict[str, Any]) -> int:
+    code, _ = sb_request(
+        "PATCH",
+        f"rest/v1/{table}?{filter_kv}",
+        body=json.dumps(patch).encode("utf-8"),
+        extra_headers={"Prefer": "return=minimal"},
+    )
+    return code
+
+
+def storage_upload(path: str, content: bytes, content_type: str) -> bool:
+    code, _ = sb_request(
+        "POST",
+        f"storage/v1/object/{BUCKET}/{path}",
+        body=content,
+        extra_headers={
+            "Content-Type": content_type,
+            "x-upsert": "true",
+        },
+    )
+    return code < 300
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# HTML-Parsing
+# ───────────────────────────────────────────────────────────────────────────
+
+
+RE_ARTICLE = re.compile(
+    r'<article\s+[^>]*class="aditem"[^>]*data-adid="(?P<adid>\d+)"[^>]*data-href="(?P<href>[^"]+)"[^>]*>(?P<body>.*?)</article>',
+    re.DOTALL,
+)
+RE_TITLE_LIST = re.compile(r'<a class="ellipsis"[^>]*>\s*(.*?)\s*</a>', re.DOTALL)
+RE_ORT_LIST = re.compile(r'class="aditem-main--top--left"[^>]*>(.*?)</div>', re.DOTALL)
+RE_PRICE_LIST = re.compile(r'class="aditem-main--middle--price-shipping--price"[^>]*>\s*(.*?)\s*</p>', re.DOTALL)
+RE_TAG = re.compile(r'class="simpletag[^"]*"[^>]*>\s*([^<]+?)\s*</span>')
+
+RE_TITLE_DETAIL = re.compile(r'<h1[^>]*id="viewad-title"[^>]*>(.*?)</h1>', re.DOTALL)
+RE_PRICE_DETAIL = re.compile(r'<h2[^>]*id="viewad-price"[^>]*>(.*?)</h2>', re.DOTALL)
+RE_LOCALITY = re.compile(r'id="viewad-locality"[^>]*>(.*?)</span>', re.DOTALL)
+RE_DESC = re.compile(r'id="viewad-description-text"[^>]*>(.*?)</p>', re.DOTALL)
+RE_DETAIL_LI = re.compile(
+    r'<li class="addetailslist--detail">\s*([^<]+?)\s*<span class="addetailslist--detail--value"[^>]*>\s*([^<]+?)\s*</span>',
+    re.DOTALL,
+)
+RE_IMG = re.compile(r'data-imgsrc="([^"]+)"|<img[^>]+id="viewad-image"[^>]+src="([^"]+)"')
+RE_CREATED = re.compile(r'id="viewad-extra-info"[^>]*>(.*?)</div>', re.DOTALL)
+RE_DATE_TXT = re.compile(r'(\d{2}\.\d{2}\.\d{4})')
+# Aufrufe stehen nach dem Datum (z.B. "22.05.2026 ... 40"); nicht das Jahr matchen.
+RE_VIEWS = re.compile(
+    r'\d{2}\.\d{2}\.\d{4}\s+(\d{1,5})(?!\d)|(\d{1,5})\s*(?:Aufrufe|gesehen)'
+)
+RE_RESERVIERT = re.compile(r'Reserviert', re.IGNORECASE)
+RE_GELOESCHT = re.compile(r'Gel(ö|&ouml;)scht', re.IGNORECASE)
+# Strikter Match: nur class endet auf "userprofile-vip" (nicht userprofile-vip-details*)
+RE_ANBIETER_NAME = re.compile(
+    r'class="[^"]*\buserprofile-vip"[^>]*>\s*([^<]+?)\s*</span>', re.DOTALL
+)
+_GENERIC_USER_NAMES = {"Privater Nutzer", "Gewerblicher Nutzer", ""}
+RE_ANBIETER_TYP = re.compile(
+    r'<span class="userprofile-vip-details-text">\s*(Privater Nutzer|Gewerblicher Nutzer)\s*</span>',
+    re.DOTALL,
+)
+RE_ANBIETER_AKTIV = re.compile(
+    r'<span class="userprofile-vip-details-text">\s*Aktiv seit\s*(\d{2}\.\d{2}\.\d{4})\s*</span>',
+    re.DOTALL,
+)
+RE_DOC = re.compile(
+    r'<a\s+href="(https://dl\.kleinanzeigen-user-content\.de/dokumente/[^"]+)"[^>]*class="[^"]*ad-documents[^"]*"[^>]*>'
+    r'.*?<span\s+class="iconlist-text[^"]*">\s*([^<]+?)\s*</span>',
+    re.DOTALL,
+)
+
+
+import html as _html_mod
+import unicodedata as _unicode_mod
+
+# Unsichtbare Zeichen (Zero-Width Space, Soft-Hyphen, ZW-Joiner, BiDi-Marks etc.),
+# die kleinanzeigen.de in Orts- und Titelfeldern für Such-Cosmetics einstreut.
+_INVISIBLE_RE = re.compile(
+    r"[­​‌‍‎‏  ‪-‮⁠﻿]"
+)
+
+
+def strip_html(s: str) -> str:
+    if not s:
+        return ""
+    # 1) Tags raus
+    s = re.sub(r"<[^>]+>", "", s)
+    # 2) Alle benannten + numerischen HTML-Entities auflösen
+    #    (&amp; &ouml; &#8203; &#x200B; etc.)
+    s = _html_mod.unescape(s)
+    # 3) Unicode-Normalisierung (NFC) — z.B. á aus a+◌́ zusammenführen
+    s = _unicode_mod.normalize("NFC", s)
+    # 4) Unsichtbare Zeichen entfernen
+    s = _INVISIBLE_RE.sub("", s)
+    # 5) Whitespace normalisieren
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def parse_price(txt: str) -> tuple[float | None, bool]:
+    """'995.000 €' → (995000.00, False); '60.000 € VB' → (60000.00, True)."""
+    if not txt:
+        return None, False
+    vb = " VB" in txt or "Verhandlung" in txt
+    m = re.search(r'([\d.]+)', txt)
+    if not m:
+        return None, vb
+    val = m.group(1).replace(".", "")
+    try:
+        return float(val), vb
+    except ValueError:
+        return None, vb
+
+
+def parse_flaeche(txt: str | None) -> float | None:
+    if not txt:
+        return None
+    m = re.search(r'([\d.,]+)', txt)
+    if not m:
+        return None
+    val = m.group(1).replace(".", "").replace(",", ".")
+    try:
+        return float(val)
+    except ValueError:
+        return None
+
+
+def parse_plz_ort(ort_str: str) -> tuple[str | None, str | None, str | None]:
+    """'14532 Kleinmachnow' → ('14532', 'Kleinmachnow', None).
+       '15827 Blankenfelde-Mahlow' → ('15827', 'Blankenfelde-Mahlow', None)."""
+    if not ort_str:
+        return None, None, None
+    ort_str = ort_str.strip()
+    m = re.match(r'^(\d{5})\s+(.+?)$', ort_str)
+    if not m:
+        return None, ort_str, None
+    plz = m.group(1)
+    rest = m.group(2).strip()
+    # Manchmal: "Stadt - Ortsteil"
+    if " - " in rest:
+        ort, ortsteil = rest.split(" - ", 1)
+        return plz, ort.strip(), ortsteil.strip()
+    return plz, rest, None
+
+
+@dataclass
+class ListItem:
+    adid: int
+    href: str
+    title: str
+    ort_str: str
+    price_str: str
+    tags: list[str] = field(default_factory=list)
+
+
+def parse_listing(html: str) -> list[ListItem]:
+    items: list[ListItem] = []
+    for m in RE_ARTICLE.finditer(html):
+        adid = int(m.group("adid"))
+        href = m.group("href")
+        body = m.group("body")
+        title_m = RE_TITLE_LIST.search(body)
+        ort_m = RE_ORT_LIST.search(body)
+        price_m = RE_PRICE_LIST.search(body)
+        tags = [strip_html(t) for t in RE_TAG.findall(body)]
+        items.append(
+            ListItem(
+                adid=adid,
+                href=href,
+                title=strip_html(title_m.group(1)) if title_m else "",
+                ort_str=strip_html(ort_m.group(1)) if ort_m else "",
+                price_str=strip_html(price_m.group(1)) if price_m else "",
+                tags=tags,
+            )
+        )
+    return items
+
+
+@dataclass
+class DetailData:
+    title: str
+    price_str: str
+    locality: str
+    desc: str
+    details: dict[str, str]
+    images: list[str]
+    created_date: str | None
+    aufrufe: int | None
+    reserviert: bool
+    geloescht: bool
+    anbieter_name: str | None = None
+    anbieter_typ: str | None = None
+    anbieter_aktiv_seit: str | None = None
+    dokumente: list[tuple[str, str]] = field(default_factory=list)  # [(href, dateiname), ...]
+
+
+def parse_detail(html: str) -> DetailData:
+    title_m = RE_TITLE_DETAIL.search(html)
+    price_m = RE_PRICE_DETAIL.search(html)
+    loc_m = RE_LOCALITY.search(html)
+    desc_m = RE_DESC.search(html)
+    created_m = RE_CREATED.search(html)
+    title = strip_html(title_m.group(1)) if title_m else ""
+    price = strip_html(price_m.group(1)) if price_m else ""
+    loc = strip_html(loc_m.group(1)) if loc_m else ""
+    desc = strip_html(desc_m.group(1)) if desc_m else ""
+    details = {strip_html(k): strip_html(v) for k, v in RE_DETAIL_LI.findall(html)}
+    images: list[str] = []
+    seen_uuids: set[str] = set()
+    # WICHTIG: nur echte Inserat-Bilder aus dem prod-ads-CDN nehmen.
+    # Werbung/AdSense kommt aus anderen Domains, UI-Icons aus /static/.
+    PROD_ADS_RE = re.compile(
+        r"^https?://img\.kleinanzeigen\.de/api/v1/prod-ads/images/[a-f0-9]{2}/([a-f0-9-]+)"
+    )
+    for m in RE_IMG.finditer(html):
+        url = m.group(1) or m.group(2)
+        if not url:
+            continue
+        match = PROD_ADS_RE.match(url)
+        if not match:
+            continue  # Werbung / UI-Icon / fremde Domain
+        uuid = match.group(1)
+        if uuid in seen_uuids:
+            continue
+        seen_uuids.add(uuid)
+        # Auf größte Auflösung normalisieren ($_59 ≈ large)
+        clean = url.split("?")[0] + "?rule=$_59.AUTO"
+        images.append(clean)
+    created_blob = strip_html(created_m.group(1)) if created_m else ""
+    date_m = RE_DATE_TXT.search(created_blob)
+    views_m = RE_VIEWS.search(strip_html(created_m.group(1)) if created_m else "")
+    created_date = None
+    if date_m:
+        try:
+            d, m_, y = date_m.group(1).split(".")
+            created_date = f"{y}-{m_}-{d}"
+        except ValueError:
+            pass
+    aufrufe = None  # wird per separatem fetch_aufrufe() geholt — JS-only im HTML
+    # Anbieter
+    an_name_m = RE_ANBIETER_NAME.search(html)
+    an_typ_m = RE_ANBIETER_TYP.search(html)
+    an_seit_m = RE_ANBIETER_AKTIV.search(html)
+    anbieter_typ = None
+    if an_typ_m:
+        t = an_typ_m.group(1)
+        anbieter_typ = "privat" if "Privater" in t else "gewerblich"
+    anbieter_seit = None
+    if an_seit_m:
+        try:
+            d, m_, y = an_seit_m.group(1).split(".")
+            anbieter_seit = f"{y}-{m_}-{d}"
+        except ValueError:
+            pass
+    # Dokumente (PDFs)
+    dokumente: list[tuple[str, str]] = []
+    for href, name in RE_DOC.findall(html):
+        dokumente.append((href, strip_html(name)))
+    return DetailData(
+        title=title,
+        price_str=price,
+        locality=loc,
+        desc=desc,
+        details=details,
+        images=images,
+        created_date=created_date,
+        aufrufe=aufrufe,
+        reserviert=bool(RE_RESERVIERT.search(title)),
+        geloescht=bool(RE_GELOESCHT.search(title)),
+        anbieter_name=(
+            (lambda n: None if n in _GENERIC_USER_NAMES else n)(
+                strip_html(an_name_m.group(1))
+            )
+            if an_name_m
+            else None
+        ),
+        anbieter_typ=anbieter_typ,
+        anbieter_aktiv_seit=anbieter_seit,
+        dokumente=dokumente,
+    )
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Bilder
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def upload_documents(kid: int, docs: list[tuple[str, str]], referer: str) -> int:
+    """Lädt PDFs runter, legt sie unter kid/<idx>.pdf im Bucket ab,
+    und schreibt Einträge in kleinanzeigen_dokumente. Returns Anzahl."""
+    if not docs:
+        return 0
+    # Erst alte Einträge dieser kid löschen (Re-Import-Safe)
+    sb_request("DELETE", f"rest/v1/kleinanzeigen_dokumente?kid=eq.{kid}",
+               extra_headers={"Prefer": "return=minimal"})
+    saved = 0
+    for idx, (href, dateiname) in enumerate(docs):
+        code, content = http_get(href, referer=referer, retries=1)
+        if code != 200 or not content:
+            log(f"    Dok {idx} fail: HTTP {code}")
+            continue
+        # Sanitize dateiname für Pfad
+        safe = re.sub(r"[^a-zA-Z0-9._-]", "_", dateiname)[:80] or f"doc_{idx}"
+        if not safe.lower().endswith(".pdf"):
+            safe += ".pdf"
+        path = f"{kid}/{idx:02d}_{safe}"
+        # Upload zum privaten Bucket
+        c2, _ = sb_request(
+            "POST",
+            f"storage/v1/object/kleinanzeigen-dokumente/{path}",
+            body=content,
+            extra_headers={"Content-Type": "application/pdf", "x-upsert": "true"},
+        )
+        if c2 >= 300:
+            log(f"    Dok upload fail {path} HTTP {c2}")
+            continue
+        c3, _ = sb_request(
+            "POST",
+            "rest/v1/kleinanzeigen_dokumente",
+            body=json.dumps({
+                "kid": kid,
+                "idx": idx,
+                "dateiname": dateiname,
+                "pfad": path,
+                "herkunft_url": href,
+                "bytes": len(content),
+            }).encode("utf-8"),
+            extra_headers={"Prefer": "return=minimal"},
+        )
+        if c3 < 300:
+            saved += 1
+        time.sleep(0.5)
+    return saved
+
+
+def upload_images(kid: int, image_urls: list[str], referer: str) -> tuple[str | None, list[str]]:
+    """Lädt alle Bilder runter und legt sie unter <kid>/<idx>.jpg im Bucket ab."""
+    paths: list[str] = []
+    cover: str | None = None
+    for idx, url in enumerate(image_urls):
+        # CDN-URL: $_59.AUTO ist 'large'; können wir behalten.
+        code, content = http_get(url, referer=referer, retries=1)
+        if code != 200 or not content:
+            log(f"    Bild {idx} fail: HTTP {code}")
+            continue
+        # ContentType anhand der URL-Endung schätzen
+        ct = "image/jpeg"
+        if url.lower().endswith(".png"):
+            ct = "image/png"
+        path = f"{kid}/{idx}.jpg"
+        ok = storage_upload(path, content, ct)
+        if ok:
+            paths.append(path)
+            if cover is None:
+                cover = path
+        else:
+            log(f"    Storage upload fail: {path}")
+        # Mini-Throttle zwischen Bildern
+        time.sleep(0.5)
+    return cover, paths
+
+
+# ───────────────────────────────────────────────────────────────────────────
+# Hauptlauf
+# ───────────────────────────────────────────────────────────────────────────
+
+
+def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
+    plz, ort, ortsteil = parse_plz_ort(item.ort_str)
+    preis_eur, preis_vb = parse_price(item.price_str or detail.price_str)
+    flaeche = parse_flaeche(detail.details.get("Grundstücksfläche"))
+    # Titel ohne "Reserviert •" Prefix
+    clean_title = re.sub(r'^(Reserviert\s*•\s*|Gelöscht\s*•\s*)+', '', item.title or detail.title).strip()
+    locality_full = detail.locality or item.ort_str or None
+    # Roher Snapshot der Detail-Page in den Cache — bei Parser-Bugs später
+    # lokal nach-parsbar, ohne kleinanzeigen.de erneut zu treffen.
+    details_raw = {
+        "title": detail.title,
+        "price_str": detail.price_str,
+        "locality": detail.locality,
+        "desc": detail.desc,
+        "details": detail.details,
+        "image_urls": detail.images,
+        "created_date": detail.created_date,
+        "reserviert": detail.reserviert,
+        "geloescht": detail.geloescht,
+        "anbieter": {
+            "name": detail.anbieter_name,
+            "typ": detail.anbieter_typ,
+            "aktiv_seit": detail.anbieter_aktiv_seit,
+        },
+        "dokumente": [
+            {"url": href, "dateiname": name}
+            for href, name in detail.dokumente
+        ],
+    }
+    status = "aktiv"
+    if detail.geloescht:
+        status = "verkauft"  # gelöscht ist quasi verkauft/zurückgezogen
+    elif detail.reserviert:
+        status = "reserviert"
+    return {
+        "kid": item.adid,
+        "url": f"{BASE}{item.href}",
+        "href": item.href,
+        "title": clean_title,
+        "beschreibung": detail.desc[:8000] if detail.desc else None,
+        "preis_eur": preis_eur,
+        "preis_vb": preis_vb,
+        "flaeche_qm": flaeche,
+        "plz": plz,
+        "ort": ort,
+        "ortsteil": ortsteil,
+        "locality_full": locality_full,
+        "state_abbr": "BB",
+        "grundstuecksart": detail.details.get("Grundstücksart"),
+        "angebotsart": detail.details.get("Angebotsart"),
+        "provision": detail.details.get("Provision"),
+        "tags": item.tags,
+        "status": status,
+        "inserat_erstellt": detail.created_date,
+        "aufrufe": detail.aufrufe,
+        "anbieter_name": detail.anbieter_name,
+        "anbieter_typ": detail.anbieter_typ,
+        "anbieter_aktiv_seit": detail.anbieter_aktiv_seit,
+        "details_raw": details_raw,
+        "last_seen_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def fetch_existing_kids() -> set[int]:
+    rows = sb_select("kleinanzeigen_grundstueck?select=kid&status=neq.verschwunden&limit=10000")
+    if not rows:
+        return set()
+    return {int(r["kid"]) for r in rows}
+
+
+# Bewusst KEIN nachträgliches Refresh fehlender Felder — jeder Detail-Fetch
+# verbraucht kleinanzeigen.de-Quota (Akamai-Risiko) und inkrementiert den
+# Aufrufe-Counter unnötig. Beim Erst-Import wird alles in den Cache geschrieben;
+# bei bekannten Akten nur leichtes Refresh (last_seen_at + Preis).
+
+
+def run_scan(*, kaufen_only: bool = True, hard_limit: int | None = None) -> None:
+    log(f"=== marktscan_kleinanzeigen start (mode={SCAN_MODE}, max_pages={MAX_PAGES}, "
+        f"kaufen_only={kaufen_only}, hard_limit={hard_limit}) ===")
+    existing = fetch_existing_kids()
+    log(f"Bekannte aktive Akten in DB: {len(existing)}")
+
+    seen_today: set[int] = set()
+    new_count = 0
+    update_count = 0
+    fail_count = 0
+    full_scan = (SCAN_MODE == "full")   # nur im full-Mode dürfen wir "verschwunden" markieren
+    consecutive_known = 0   # für since-Mode
+
+    for page in range(1, MAX_PAGES + 1):
+        if hard_limit and new_count >= hard_limit:
+            log(f"hard_limit {hard_limit} erreicht, Abbruch (verschwunden-Mark übersprungen)")
+            full_scan = False
+            break
+        if SCAN_MODE == "since":
+            url = (
+                LIST_TPL_NEUESTE_PAGE1.format(base=BASE)
+                if page == 1
+                else LIST_TPL_NEUESTE.format(base=BASE, n=page)
+            )
+        else:
+            url = LIST_TPL_PAGE1.format(base=BASE) if page == 1 else LIST_TPL.format(base=BASE, n=page)
+        log(f"--- Seite {page} ---")
+        code, html_bytes = http_get(url, referer=f"{BASE}/")
+        if code != 200:
+            log(f"  Listing fail: HTTP {code} — Abbruch")
+            full_scan = False
+            break
+        html = html_bytes.decode("utf-8", errors="replace")
+        items = parse_listing(html)
+        log(f"  Inserate gefunden: {len(items)}")
+        if not items:
+            break
+
+        for item in items:
+            if kaufen_only:
+                # filtert spätestens beim Detail aus; Listing zeigt nicht Angebotsart
+                pass
+            seen_today.add(item.adid)
+            is_new = item.adid not in existing
+
+            if not is_new:
+                # Bekannte Akte → nur leichtes Refresh, KEIN Detail-Re-Fetch
+                preis_eur, preis_vb = parse_price(item.price_str)
+                sb_update(
+                    "kleinanzeigen_grundstueck",
+                    f"kid=eq.{item.adid}",
+                    {
+                        "last_seen_at": datetime.now(timezone.utc).isoformat(),
+                        **({"preis_eur": preis_eur} if preis_eur is not None else {}),
+                        **({"preis_vb": preis_vb} if preis_eur is not None else {}),
+                    },
+                )
+                update_count += 1
+                # since-Mode: konsekutiv bekannte Inserate zählen
+                if SCAN_MODE == "since":
+                    consecutive_known += 1
+                    if consecutive_known >= SINCE_STOP_AFTER:
+                        log(f"  since-Mode: {SINCE_STOP_AFTER} konsekutiv bekannte → STOP")
+                        full_scan = False
+                        # break inner loop, then outer
+                        break
+                continue
+            # neue Akte gefunden → Zähler resetten
+            if SCAN_MODE == "since":
+                consecutive_known = 0
+
+            # neu → Detail + Bilder
+            log(f"  NEU {item.adid} {item.title[:60]}")
+            throttle()
+            code2, det_bytes = http_get(f"{BASE}{item.href}", referer=url)
+            if code2 != 200:
+                log(f"    Detail HTTP {code2}")
+                fail_count += 1
+                continue
+            try:
+                detail = parse_detail(det_bytes.decode("utf-8", errors="replace"))
+            except Exception as e:
+                log(f"    Parse-Fehler: {e}")
+                fail_count += 1
+                continue
+
+            if kaufen_only and detail.details.get("Angebotsart") not in (None, "", "Kaufen"):
+                log(f"    skip Angebotsart={detail.details.get('Angebotsart')}")
+                continue
+
+            row = to_db_row(item, detail)
+
+            # Aufrufe nachladen (Ajax-Endpoint, da im HTML leer)
+            aufrufe = fetch_aufrufe(item.adid, referer=f"{BASE}{item.href}")
+            if aufrufe is not None:
+                row["aufrufe"] = aufrufe
+
+            # Bilder hochladen
+            cover, paths = upload_images(item.adid, detail.images, referer=f"{BASE}{item.href}")
+            row["cover_bild_path"] = cover
+            row["bilder_paths"] = paths
+            row["bilder_anzahl"] = len(paths)
+
+            # Dokumente hochladen (PDFs)
+            dok_anzahl = upload_documents(item.adid, detail.dokumente, referer=f"{BASE}{item.href}")
+            row["dokumente_anzahl"] = dok_anzahl
+
+            code3 = sb_upsert("kleinanzeigen_grundstueck", [row])
+            if code3 < 300:
+                new_count += 1
+                existing.add(item.adid)
+                log(f"    ✓ inserted ({len(paths)} Bilder)")
+            else:
+                fail_count += 1
+                log(f"    ✗ upsert fail HTTP {code3}")
+
+            throttle()
+
+        # since-Mode: nach inner-break auch outer-break
+        if SCAN_MODE == "since" and consecutive_known >= SINCE_STOP_AFTER:
+            break
+
+        if len(items) < 25:
+            log("  (Weniger als 25 Treffer — letzte Seite)")
+            break
+
+        # Random-Pause zwischen Listing-Seiten (Alex' Wunsch: ~10 s)
+        page_throttle()
+
+    # Verschwundene NUR nach vollständigem Scan markieren
+    vanished_count = 0
+    if full_scan:
+        vanished = existing - seen_today
+        if vanished:
+            log(f"--- {len(vanished)} Akten als 'verschwunden' markieren ---")
+            v_list = list(vanished)
+            for i in range(0, len(v_list), 100):
+                batch = v_list[i:i + 100]
+                sb_update(
+                    "kleinanzeigen_grundstueck",
+                    f"kid=in.({','.join(map(str, batch))})",
+                    {"status": "verschwunden"},
+                )
+            vanished_count = len(vanished)
+    else:
+        log("--- Scan war partiell (hard_limit/HTTP-fail) — kein verschwunden-Markieren ---")
+
+    log(f"=== Done. Neu: {new_count}, Updated: {update_count}, Fail: {fail_count}, "
+        f"Verschwunden: {vanished_count} ===")
+
+
+if __name__ == "__main__":
+    hard = int(os.environ.get("HARD_LIMIT", "0")) or None
+    run_scan(kaufen_only=True, hard_limit=hard)

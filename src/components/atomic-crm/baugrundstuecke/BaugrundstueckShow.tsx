@@ -1,0 +1,725 @@
+import { useEffect, useState } from "react";
+import {
+  useRecordContext,
+  useUpdate,
+  useNotify,
+  usePrevNextController,
+} from "ra-core";
+import { Link } from "react-router";
+import { Show } from "@/components/admin/show";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  ExternalLink,
+  FileText,
+  Heart,
+  Loader2,
+  MapPin,
+  Maximize2,
+  TreePine,
+  X,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { getSupabaseClient } from "../providers/supabase/supabase";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+
+import { BAUG_STATUSES, BAUG_TRIAGE, type Baugrundstueck } from "./index";
+import { useBaugFavoriten } from "./useBaugFavoriten";
+
+
+// Räumt HTML-Entities + unsichtbare Zeichen aus Altdaten (vor Parser-Fix v2).
+const cleanText = (s?: string | null): string => {
+  if (!s) return "";
+  const ta = document.createElement("textarea");
+  ta.innerHTML = s;
+  return ta.value.replace(/[\u00ad\u200b-\u200f\u2060\ufeff]/g, "").trim();
+};
+
+const formatEur = (value?: number | null) =>
+  value == null
+    ? "—"
+    : new Intl.NumberFormat("de-DE", {
+        style: "currency",
+        currency: "EUR",
+        maximumFractionDigits: 0,
+      }).format(Number(value));
+
+const formatQm = (value?: number | null) =>
+  value == null
+    ? "—"
+    : new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(
+        Number(value),
+      ) + " m²";
+
+
+const PrevNextNav = () => {
+  const { hasPrev, hasNext, prevPath, nextPath, index, total, isPending } =
+    usePrevNextController<Baugrundstueck>({
+      resource: "kleinanzeigen_grundstueck",
+      linkType: "show",
+    });
+  if (isPending && total == null) return null;
+  return (
+    <div className="flex items-center gap-1">
+      {typeof index === "number" && typeof total === "number" && (
+        <span className="text-xs text-muted-foreground tabular-nums mr-2">
+          {index + 1} / {total}
+        </span>
+      )}
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={!hasPrev}
+        asChild={hasPrev}
+        aria-label="Vorherige Anzeige"
+        title="Vorherige Anzeige (← in der aktuellen Liste)"
+      >
+        {hasPrev && prevPath ? (
+          <Link to={prevPath}>
+            <ChevronLeft className="size-4" />
+          </Link>
+        ) : (
+          <ChevronLeft className="size-4" />
+        )}
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={!hasNext}
+        asChild={hasNext}
+        aria-label="Nächste Anzeige"
+        title="Nächste Anzeige (→ in der aktuellen Liste)"
+      >
+        {hasNext && nextPath ? (
+          <Link to={nextPath}>
+            <ChevronRight className="size-4" />
+          </Link>
+        ) : (
+          <ChevronRight className="size-4" />
+        )}
+      </Button>
+    </div>
+  );
+};
+
+const BilderSlider = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const [idx, setIdx] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
+
+  if (!r?.bilder_paths || r.bilder_paths.length === 0) {
+    return (
+      <div className="aspect-video bg-muted rounded flex items-center justify-center">
+        <TreePine className="size-12 text-muted-foreground" />
+      </div>
+    );
+  }
+  const base = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/kleinanzeigen-bilder/`;
+  const paths = r.bilder_paths;
+  const total = paths.length;
+  const prev = () => setIdx((i) => (i - 1 + total) % total);
+  const next = () => setIdx((i) => (i + 1) % total);
+
+  // Keyboard-Steuerung in der Lightbox
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") prev();
+      else if (e.key === "ArrowRight") next();
+      else if (e.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightbox, total]);
+
+  return (
+    <div className="space-y-2">
+      <div
+        className="relative aspect-video bg-muted rounded overflow-hidden cursor-zoom-in group"
+        onClick={() => setLightbox(true)}
+        role="button"
+        aria-label="Bild vergrößern"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") setLightbox(true);
+        }}
+      >
+        <img
+          src={base + paths[idx]}
+          alt={`Bild ${idx + 1} von ${total}`}
+          className="w-full h-full object-contain"
+        />
+        {total > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                prev();
+              }}
+              aria-label="Vorheriges Bild"
+              className="absolute left-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-background/80 hover:bg-background border flex items-center justify-center"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                next();
+              }}
+              aria-label="Nächstes Bild"
+              className="absolute right-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-background/80 hover:bg-background border flex items-center justify-center"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-background/80 text-xs">
+              {idx + 1} / {total}
+            </div>
+          </>
+        )}
+        <div className="absolute top-2 right-2 size-8 rounded-full bg-background/80 group-hover:bg-background border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Maximize2 className="size-4" />
+        </div>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {paths.map((p, i) => (
+          <button
+            key={p}
+            onClick={() => setIdx(i)}
+            className={`shrink-0 size-16 rounded overflow-hidden border-2 ${
+              i === idx ? "border-primary" : "border-transparent"
+            }`}
+          >
+            <img
+              src={base + p}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </button>
+        ))}
+      </div>
+      <div className="text-xs text-muted-foreground">
+        {total} Bild{total === 1 ? "" : "er"}
+      </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightbox(false);
+            }}
+            aria-label="Schließen"
+            className="absolute top-4 right-4 size-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+          >
+            <X className="size-5" />
+          </button>
+
+          <img
+            src={base + paths[idx]}
+            alt={`Bild ${idx + 1} von ${total}`}
+            className="max-w-[95vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prev();
+                }}
+                aria-label="Vorheriges Bild"
+                className="absolute left-4 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+              >
+                <ChevronLeft className="size-7" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  next();
+                }}
+                aria-label="Nächstes Bild"
+                className="absolute right-4 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+              >
+                <ChevronRight className="size-7" />
+              </button>
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded bg-white/10 text-white text-sm">
+                {idx + 1} / {total}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Anschrift = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const notify = useNotify();
+  if (!r?.plz) return null;
+  const anschrift = cleanText(
+    r.locality_full ||
+      `${r.plz} ${r.ort ?? ""}${r.ortsteil ? " · " + r.ortsteil : ""}`,
+  );
+  const gmaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(anschrift)}`;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          navigator.clipboard.writeText(anschrift);
+          notify("Anschrift kopiert", { type: "success" });
+        }}
+      >
+        <Copy className="size-3 mr-1" />
+        {anschrift}
+      </Button>
+      <Button variant="outline" size="sm" asChild>
+        <a href={gmaps} target="_blank" rel="noopener noreferrer">
+          <MapPin className="size-3 mr-1" />
+          Google Maps
+        </a>
+      </Button>
+    </div>
+  );
+};
+
+const TriageBlock = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const [update, { isPending }] = useUpdate();
+  const notify = useNotify();
+  if (!r) return null;
+  const set = (triage: string | null) =>
+    update(
+      "kleinanzeigen_grundstueck",
+      { id: r.id, data: { triage }, previousData: r },
+      {
+        onSuccess: () => notify("Triage gesetzt", { type: "success" }),
+        onError: (e: any) =>
+          notify(`Fehler: ${e?.message ?? e}`, { type: "error" }),
+      },
+    );
+  return (
+    <div className="flex flex-wrap gap-2">
+      {BAUG_TRIAGE.map((t) => (
+        <Button
+          key={t.value}
+          variant={r.triage === t.value ? "default" : "outline"}
+          size="sm"
+          disabled={isPending}
+          onClick={() => set(t.value)}
+        >
+          {t.label}
+        </Button>
+      ))}
+      {r.triage && (
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={isPending}
+          onClick={() => set(null)}
+        >
+          Zurücksetzen
+        </Button>
+      )}
+    </div>
+  );
+};
+
+const NotizBlock = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const [update] = useUpdate();
+  const notify = useNotify();
+  const [value, setValue] = useState(r?.notiz ?? "");
+  if (!r) return null;
+  return (
+    <div className="space-y-2">
+      <Textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Notiz…"
+        rows={4}
+      />
+      <Button
+        size="sm"
+        onClick={() =>
+          update(
+            "kleinanzeigen_grundstueck",
+            { id: r.id, data: { notiz: value }, previousData: r },
+            {
+              onSuccess: () => notify("Notiz gespeichert", { type: "success" }),
+              onError: (e: any) =>
+                notify(`Fehler: ${e?.message ?? e}`, { type: "error" }),
+            },
+          )
+        }
+      >
+        Notiz speichern
+      </Button>
+    </div>
+  );
+};
+
+const FavoritButton = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const { isFavorit, toggle, isToggling } = useBaugFavoriten();
+  if (!r) return null;
+  const fav = isFavorit(r.kid);
+  return (
+    <Button
+      variant={fav ? "default" : "outline"}
+      size="sm"
+      disabled={isToggling}
+      onClick={() => toggle(r.kid)}
+    >
+      <Heart className={`size-4 mr-1 ${fav ? "fill-current" : ""}`} />
+      {fav ? "Favorit" : "Als Favorit markieren"}
+    </Button>
+  );
+};
+
+
+type Dokument = {
+  id: number;
+  kid: number;
+  idx: number;
+  dateiname: string;
+  pfad: string;
+  herkunft_url: string;
+  bytes: number | null;
+};
+
+const formatBytes = (n?: number | null) => {
+  if (!n) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+};
+
+const DokumenteCard = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const [docs, setDocs] = useState<Dokument[] | null>(null);
+  const [viewing, setViewing] = useState<Dokument | null>(null);
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [urlLoading, setUrlLoading] = useState(false);
+  const notify = useNotify();
+
+  useEffect(() => {
+    if (!r?.kid) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await getSupabaseClient()
+        .from("kleinanzeigen_dokumente")
+        .select("*")
+        .eq("kid", r.kid)
+        .order("idx");
+      if (cancelled) return;
+      if (error) {
+        notify(`Dokumente: ${error.message}`, { type: "error" });
+        setDocs([]);
+      } else {
+        setDocs((data as Dokument[]) ?? []);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [r?.kid, notify]);
+
+  useEffect(() => {
+    if (!viewing) {
+      setSignedUrl(null);
+      return;
+    }
+    let cancelled = false;
+    setUrlLoading(true);
+    (async () => {
+      try {
+        const { data, error } = await getSupabaseClient()
+          .storage.from("kleinanzeigen-dokumente")
+          .createSignedUrl(viewing.pfad, 3600);
+        if (cancelled) return;
+        if (error || !data?.signedUrl) throw error;
+        setSignedUrl(data.signedUrl);
+      } catch (e: any) {
+        if (!cancelled)
+          notify(`Konnte Dokument nicht laden: ${e?.message ?? e}`, {
+            type: "error",
+          });
+      } finally {
+        if (!cancelled) setUrlLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [viewing, notify]);
+
+  if (docs === null) {
+    return (
+      <div className="text-sm text-muted-foreground flex items-center gap-2">
+        <Loader2 className="size-4 animate-spin" /> Lade Dokumente …
+      </div>
+    );
+  }
+  if (docs.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        Keine Dokumente in dieser Anzeige.
+      </div>
+    );
+  }
+  return (
+    <>
+      <ul className="divide-y rounded-md border bg-card">
+        {docs.map((d) => (
+          <li
+            key={d.id}
+            className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer"
+            onClick={() => setViewing(d)}
+          >
+            <FileText className="size-5 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{d.dateiname}</div>
+              <div className="text-xs text-muted-foreground">
+                {d.bytes ? formatBytes(d.bytes) : ""}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" tabIndex={-1}>
+              Öffnen
+            </Button>
+          </li>
+        ))}
+      </ul>
+
+      <Dialog
+        open={viewing !== null}
+        onOpenChange={(o) => {
+          if (!o) setViewing(null);
+        }}
+      >
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-4">
+          <DialogHeader>
+            <DialogTitle className="text-sm truncate">
+              {viewing?.dateiname}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 bg-muted rounded">
+            {urlLoading || !signedUrl ? (
+              <div className="h-full flex items-center justify-center text-muted-foreground">
+                <Loader2 className="size-5 animate-spin mr-2" /> Lade PDF …
+              </div>
+            ) : (
+              <iframe
+                src={signedUrl}
+                title={viewing?.dateiname}
+                className="w-full h-full rounded"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
+
+const ShowBody = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  if (!r) return null;
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-4">
+      <div className="lg:col-span-2 space-y-4">
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <CardTitle className="text-lg leading-tight">
+                  {r.title}
+                </CardTitle>
+                {r.tags && r.tags.length > 0 && (
+                  <div className="flex gap-1 mt-2 flex-wrap">
+                    {r.tags.map((t) => (
+                      <Badge key={t} variant="outline">
+                        {t}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge>
+                  {BAUG_STATUSES.find((s) => s.value === r.status)?.label ??
+                    r.status}
+                </Badge>
+                <PrevNextNav />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <BilderSlider />
+            <Anschrift />
+            <Button variant="outline" asChild>
+              <a href={r.url} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="size-4 mr-2" />
+                Original-Inserat auf kleinanzeigen.de
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Beschreibung</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm">
+              {r.beschreibung ?? "—"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Dokumente{r.dokumente_anzahl ? ` (${r.dokumente_anzahl})` : ""}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DokumenteCard />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Eigenschaften</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Preis</span>
+              <span className="font-medium tabular-nums">
+                {r.preis_vb ? "VB " : ""}
+                {formatEur(r.preis_eur)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Fläche</span>
+              <span>{formatQm(r.flaeche_qm)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">€/m²</span>
+              <span>
+                {r.preis_pro_qm ? formatEur(r.preis_pro_qm) : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Grundstücksart</span>
+              <span>{r.grundstuecksart ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Angebotsart</span>
+              <span>{r.angebotsart ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Provision</span>
+              <span>{r.provision ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Inseriert</span>
+              <span>{r.inserat_erstellt ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Aufrufe</span>
+              <span>{r.aufrufe ?? "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Kleinanzeigen-ID</span>
+              <span className="tabular-nums">{r.kid}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Anbieter</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Name</span>
+              <span className="font-medium text-right max-w-[60%]">
+                {r.anbieter_name ?? "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Typ</span>
+              <span>
+                {r.anbieter_typ === "privat"
+                  ? "Privater Nutzer"
+                  : r.anbieter_typ === "gewerblich"
+                    ? "Gewerblicher Nutzer"
+                    : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Aktiv seit</span>
+              <span>
+                {r.anbieter_aktiv_seit
+                  ? new Date(r.anbieter_aktiv_seit).toLocaleDateString("de-DE")
+                  : "—"}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Aktionen</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <FavoritButton />
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Triage</div>
+              <TriageBlock />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Notiz</div>
+              <NotizBlock />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const BaugrundstueckShow = () => (
+  <Show>
+    <ShowBody />
+  </Show>
+);
+
+export default BaugrundstueckShow;

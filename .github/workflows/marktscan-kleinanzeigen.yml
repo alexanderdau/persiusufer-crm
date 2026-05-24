@@ -1,0 +1,75 @@
+name: Marktscan kleinanzeigen.de (Baugrundstücke BB)
+
+# Läuft täglich 06:30 Berliner Zeit (= 04:30 UTC im Sommer / 05:30 UTC im Winter
+# — wir nehmen 04:30 UTC, das passt ~07:30 lokal im Winter).
+# Manuell startbar via "Run workflow" auf GitHub mit Bootstrap-Modus.
+
+on:
+  workflow_dispatch:
+    inputs:
+      scan_mode:
+        description: "Scan-Modus"
+        required: true
+        default: "since"
+        type: choice
+        options:
+          - since
+          - full
+      hard_limit:
+        description: "Max. neue Inserate pro Lauf (0 = unbegrenzt)"
+        required: false
+        default: "0"
+      max_pages:
+        description: "Maximale Listing-Seiten"
+        required: false
+        default: "100"
+
+  schedule:
+    # Täglich 04:30 UTC (~06:30 Berlin Sommerzeit, 05:30 Winterzeit)
+    - cron: "30 4 * * *"
+
+concurrency:
+  group: marktscan-kleinanzeigen
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    # 5h max — Bootstrap braucht ~2-3h, Daily nur ein paar Minuten
+    timeout-minutes: 300
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run marktscan
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          # Default für scheduled run = since-Mode (Daily); manuelle Inputs override
+          SCAN_MODE: ${{ github.event.inputs.scan_mode || 'since' }}
+          HARD_LIMIT: ${{ github.event.inputs.hard_limit || '0' }}
+          MAX_PAGES: ${{ github.event.inputs.max_pages || '100' }}
+          PAGE_THROTTLE_MIN: "8"
+          PAGE_THROTTLE_MAX: "12"
+          THROTTLE_MIN: "1"
+          THROTTLE_MAX: "2.5"
+          SINCE_STOP_AFTER: "10"
+          LOG_DIR: ${{ github.workspace }}/_logs
+        run: |
+          mkdir -p _logs
+          python scripts/marktscan_kleinanzeigen.py
+        # Bei Fehler: Logs trotzdem hochladen
+        continue-on-error: false
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marktscan-log-${{ github.run_id }}
+          path: _logs/
+          retention-days: 14
