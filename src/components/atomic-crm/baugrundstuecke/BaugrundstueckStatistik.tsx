@@ -138,8 +138,11 @@ const BaugrundstueckStatistik = () => {
     if (a) {
       lines.push(`Inserate: ${a.count}`);
       if (a.sumFlaeche > 0 && a.sumPreis > 0) {
+        // Σpreis / Σfläche = flächengewichteter €/m²-Schnitt
+        // (jeder Quadratmeter zählt gleich, große Grundstücke gewichten stärker)
         const avg = a.sumPreis / a.sumFlaeche;
-        lines.push(`Ø ${formatEur(avg)} / m²`);
+        lines.push(`Ø ${formatEur(avg)} / m² (flächengewichtet)`);
+        lines.push(`Σ Fläche: ${new Intl.NumberFormat("de-DE").format(Math.round(a.sumFlaeche))} m²`);
       }
     } else {
       lines.push(`Keine Inserate`);
