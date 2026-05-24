@@ -35,6 +35,8 @@ const BaugrundstueckStatistik = () => {
   const [geo, setGeo] = useState<any>(null);
   const [agg, setAgg] = useState<Record<string, Aggregate>>({});
   const [loading, setLoading] = useState(true);
+  // Default-Filter: kleine Garten-Parzellen ausschließen (verzerren €/m²)
+  const [minFlaeche, setMinFlaeche] = useState<number>(300);
 
   // Filter aus URL übernehmen (gleiche Keys wie List)
   const dbFilter = useMemo(() => {
@@ -96,11 +98,13 @@ const BaugrundstueckStatistik = () => {
       for (const r of data as any[]) {
         const plz = r.plz as string;
         if (!plz) continue;
+        const preis = Number(r.preis_eur);
+        const flaeche = Number(r.flaeche_qm);
+        // Default-Filter: nur Inserate ab Mindestfläche
+        if (minFlaeche > 0 && (!flaeche || flaeche < minFlaeche)) continue;
         if (!map[plz])
           map[plz] = { plz, count: 0, sumFlaeche: 0, pricesPerSqm: [] };
         map[plz].count++;
-        const preis = Number(r.preis_eur);
-        const flaeche = Number(r.flaeche_qm);
         if (flaeche > 0) map[plz].sumFlaeche += flaeche;
         if (preis > 0 && flaeche > 0)
           map[plz].pricesPerSqm.push(preis / flaeche);
@@ -111,7 +115,7 @@ const BaugrundstueckStatistik = () => {
     return () => {
       cancelled = true;
     };
-  }, [dbFilter]);
+  }, [dbFilter, minFlaeche]);
 
   const totals = useMemo(() => {
     const list = Object.values(agg);
@@ -144,11 +148,27 @@ const BaugrundstueckStatistik = () => {
       if (a.pricesPerSqm.length > 0) {
         const sorted = [...a.pricesPerSqm].sort((x, y) => x - y);
         const n = sorted.length;
-        const median =
-          n % 2 === 1
-            ? sorted[(n - 1) / 2]
-            : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+        const quantile = (q: number) => {
+          const pos = (n - 1) * q;
+          const lo = Math.floor(pos);
+          const hi = Math.ceil(pos);
+          if (lo === hi) return sorted[lo];
+          return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+        };
+        const median = quantile(0.5);
+        const q1 = quantile(0.25);
+        const q3 = quantile(0.75);
+        const min = sorted[0];
+        const max = sorted[n - 1];
         lines.push(`Median ${formatEur(median)} / m²`);
+        if (n >= 4) {
+          lines.push(
+            `Q1–Q3: ${formatEur(q1)} – ${formatEur(q3)} / m²`,
+          );
+        }
+        if (n >= 2) {
+          lines.push(`Spanne: ${formatEur(min)} – ${formatEur(max)} / m²`);
+        }
         if (a.sumFlaeche > 0) {
           lines.push(
             `Σ Fläche: ${new Intl.NumberFormat("de-DE").format(Math.round(a.sumFlaeche))} m²`,
@@ -173,22 +193,35 @@ const BaugrundstueckStatistik = () => {
 
   return (
     <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">
             Baugrundstücke — Statistik nach PLZ
           </h1>
           <p className="text-sm text-muted-foreground">
-            Karte mit aktuell selektierten Inseraten gruppiert nach Postleitzahl
-            ({totals.anzahl_inserate} Inserate in {totals.anzahl_plz} PLZ-Gebieten)
+            {totals.anzahl_inserate} Inserate in {totals.anzahl_plz} PLZ-Gebieten
+            {minFlaeche > 0 && ` (gefiltert: Fläche ≥ ${minFlaeche} m²)`}
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link to="/kleinanzeigen_grundstueck">
-            <ArrowLeft className="size-4 mr-2" />
-            Zurück zur Liste
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Min. Fläche:</span>
+          {[0, 300, 500, 1000].map((m) => (
+            <Button
+              key={m}
+              variant={minFlaeche === m ? "default" : "outline"}
+              size="sm"
+              onClick={() => setMinFlaeche(m)}
+            >
+              {m === 0 ? "alle" : `≥ ${m} m²`}
+            </Button>
+          ))}
+          <Button variant="outline" asChild>
+            <Link to="/kleinanzeigen_grundstueck">
+              <ArrowLeft className="size-4 mr-2" />
+              Zurück
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
