@@ -109,7 +109,16 @@ const TitelCell = () => {
   if (!r) return null;
   return (
     <div className="max-w-md">
-      <div className="font-medium line-clamp-2">{r.title}</div>
+      <div className="font-medium line-clamp-2 flex items-start gap-1.5">
+        {r.hat_anschrift && (
+          <span
+            className="inline-block size-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"
+            title="Konkrete Anschrift in der Anzeige erkannt (Straßenname + Hausnummer)"
+            aria-label="Anschrift in Anzeige"
+          />
+        )}
+        <span>{r.title}</span>
+      </div>
       {r.tags && r.tags.length > 0 && (
         <div className="flex gap-1 mt-1 flex-wrap">
           {r.tags.map((t) => (
@@ -266,11 +275,31 @@ const ListSearch = () => {
   return (
     <Input
       type="search"
-      placeholder="Titel / Beschreibung durchsuchen…"
-      defaultValue={filterValues.q ?? ""}
+      placeholder="Titel, Ort oder PLZ (z.B. 154 für PLZ-Prefix)…"
+      defaultValue={
+        (filterValues["plz@like"] as string | undefined)?.replace("*", "") ??
+        (filterValues["title@ilike"] as string | undefined)?.replaceAll("*", "") ??
+        ""
+      }
       onChange={(e) => {
-        const v = e.target.value;
-        setFilters({ ...filterValues, q: v || undefined }, undefined);
+        const v = e.target.value.trim();
+        const cleared = {
+          ...filterValues,
+          "title@ilike": undefined,
+          "plz@like": undefined,
+          "ort@ilike": undefined,
+        };
+        if (!v) {
+          setFilters(cleared, undefined);
+          return;
+        }
+        if (/^\d{1,5}$/.test(v)) {
+          // Ziffer-Input → PLZ-Prefix
+          setFilters({ ...cleared, "plz@like": v + "*" }, undefined);
+        } else {
+          // Sonst Titel-Substring (ilike, * = %)
+          setFilters({ ...cleared, "title@ilike": `*${v}*` }, undefined);
+        }
       }}
       className="max-w-sm mb-3"
     />
@@ -319,6 +348,16 @@ const BaugrundstueckList = () => {
           label="€/m²"
           className="text-right tabular-nums"
           render={(r) => (r.preis_pro_qm ? formatEur(r.preis_pro_qm) : "—")}
+        />
+        <DataTable.Col<Baugrundstueck>
+          source="aufrufe"
+          label="Aufrufe"
+          className="text-right tabular-nums"
+          render={(r) =>
+            r.aufrufe != null
+              ? new Intl.NumberFormat("de-DE").format(r.aufrufe)
+              : "—"
+          }
         />
         <DataTable.Col<Baugrundstueck>
           source="last_seen_at"
