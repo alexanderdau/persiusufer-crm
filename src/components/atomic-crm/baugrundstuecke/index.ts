@@ -47,6 +47,7 @@ export type Baugrundstueck = {
   erschliessung?: string | null;
   teilbar?: boolean | null;
   paragraph_34?: boolean | null;
+  provision_satz_pct?: number | null;
   bebaubarkeit_kurz?: string | null;
   risiken?: string[] | null;
   ki_analyse_at?: string | null;

@@ -301,6 +301,14 @@ RE_BPLAN_VORHANDEN = re.compile(
     r"§\s*30\s+BauGB",
     re.IGNORECASE,
 )
+RE_PROV_SATZ = re.compile(
+    r"(?:Provision|Courtage|K(?:ä|ae)ufer(?:provision|courtage)|Maklerlohn|Maklerprovision)"
+    r"[\s\S]{0,80}?(\d{1,2}[,.]\d{1,2})\s*%|"
+    r"(\d{1,2}[,.]\d{1,2})\s*%(?:\s*(?:zzgl\.?|inkl\.?|inkl|incl|netto|brutto)?\s*"
+    r"(?:Mw[Ss]t|MwSt\.?|MWSt|USt|MWST))",
+    re.IGNORECASE,
+)
+
 RE_PARAGRAPH_34 = re.compile(
     r"§\s*34\s*BauGB|"
     r"nach\s+§\s*34\b|"
@@ -728,6 +736,17 @@ def parse_baurecht(beschreibung: str | None) -> dict:
     # §34 BauGB — Bebauung muss sich in nähere Umgebung einfügen
     if RE_PARAGRAPH_34.search(b):
         out["paragraph_34"] = True
+    # Provisionssatz aus Beschreibung
+    m = RE_PROV_SATZ.search(b)
+    if m:
+        val = m.group(1) or m.group(2)
+        if val:
+            try:
+                v = float(val.replace(",", "."))
+                if 0 < v < 20:
+                    out["provision_satz_pct"] = v
+            except ValueError:
+                pass
     return out
 
 
@@ -753,6 +772,7 @@ Extrahiere genau diese Felder (alle optional, weglassen wenn nicht klar):
 - erschliessung (string): "voll" | "teilweise" | "unerschlossen"
 - teilbar (bool)
 - paragraph_34 (bool): Bebauung nach §34 BauGB — Einfügungsgebot, kein qualifizierter B-Plan
+- provision_satz_pct (float, z.B. 3.57 oder 7.14): Maklerprovisionssatz in Prozent, falls in der Beschreibung genannt
 - bebaubarkeit_kurz (string, max 200 Zeichen): ein Satz für den Investor
 - risiken (string[]): konkrete Risiken (Altlasten, Naturschutz, Erbpacht, Hochwasser, Denkmalschutz etc.)
 
@@ -884,6 +904,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "erschliessung": baurecht.get("erschliessung"),
         "teilbar": baurecht.get("teilbar"),
         "paragraph_34": baurecht.get("paragraph_34"),
+        "provision_satz_pct": baurecht.get("provision_satz_pct"),
         "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
         "risiken": baurecht.get("risiken"),
         "ki_analyse_at": baurecht.get("ki_analyse_at"),

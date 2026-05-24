@@ -4,12 +4,14 @@ import {
   useUpdate,
   useNotify,
   usePrevNextController,
+  useRefresh,
 } from "ra-core";
 import { Link } from "react-router";
 import { Show } from "@/components/admin/show";
 import {
   ChevronLeft,
   ChevronRight,
+  Sparkles,
   Copy,
   ExternalLink,
   FileText,
@@ -61,6 +63,56 @@ const formatQm = (value?: number | null) =>
         Number(value),
       ) + " m²";
 
+
+const KiAnalyseButton = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const notify = useNotify();
+  const refresh = useRefresh();
+  const [running, setRunning] = useState(false);
+  if (!r) return null;
+  const onClick = async () => {
+    setRunning(true);
+    try {
+      const { data, error } = await getSupabaseClient().functions.invoke(
+        "kleinanzeigen-ki-analyse",
+        { body: { kid: r.kid } },
+      );
+      if (error) {
+        notify(
+          `KI-Analyse fehlgeschlagen: ${error.message ?? String(error)}`,
+          { type: "error" },
+        );
+      } else if ((data as any)?.error) {
+        notify(`KI-Analyse: ${(data as any).error}`, { type: "error" });
+      } else {
+        const changed = (data as any)?.changed ?? 0;
+        notify(
+          changed > 0
+            ? `KI hat ${changed} Feld${changed === 1 ? "" : "er"} aktualisiert`
+            : "KI-Analyse abgeschlossen — keine neuen Felder",
+          { type: "success" },
+        );
+        refresh();
+      }
+    } catch (e: any) {
+      notify(`KI-Analyse-Fehler: ${e?.message ?? e}`, { type: "error" });
+    } finally {
+      setRunning(false);
+    }
+  };
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      onClick={onClick}
+      disabled={running}
+      title="Beschreibung per KI auswerten und Baurecht-Felder befüllen"
+    >
+      <Sparkles className="size-4 mr-1.5" />
+      {running ? "KI analysiert …" : r.ki_analyse_at ? "KI erneut" : "KI analysieren"}
+    </Button>
+  );
+};
 
 const PrevNextNav = () => {
   const { hasPrev, hasNext, prevPath, nextPath, index, total, isPending } =
@@ -569,7 +621,8 @@ const ShowBody = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                <KiAnalyseButton />
                 <Badge>
                   {BAUG_STATUSES.find((s) => s.value === r.status)?.label ??
                     r.status}
