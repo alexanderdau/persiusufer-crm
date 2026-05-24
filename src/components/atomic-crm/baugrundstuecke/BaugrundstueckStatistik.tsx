@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
-type Aggregate = { plz: string; count: number; sumPreis: number; sumFlaeche: number };
+type Aggregate = { plz: string; count: number; sumFlaeche: number; pricesPerSqm: number[] };
 
 const formatEur = (v: number | null | undefined) =>
   v == null
@@ -96,10 +96,14 @@ const BaugrundstueckStatistik = () => {
       for (const r of data as any[]) {
         const plz = r.plz as string;
         if (!plz) continue;
-        if (!map[plz]) map[plz] = { plz, count: 0, sumPreis: 0, sumFlaeche: 0 };
+        if (!map[plz])
+          map[plz] = { plz, count: 0, sumFlaeche: 0, pricesPerSqm: [] };
         map[plz].count++;
-        if (r.preis_eur) map[plz].sumPreis += Number(r.preis_eur);
-        if (r.flaeche_qm) map[plz].sumFlaeche += Number(r.flaeche_qm);
+        const preis = Number(r.preis_eur);
+        const flaeche = Number(r.flaeche_qm);
+        if (flaeche > 0) map[plz].sumFlaeche += flaeche;
+        if (preis > 0 && flaeche > 0)
+          map[plz].pricesPerSqm.push(preis / flaeche);
       }
       setAgg(map);
       setLoading(false);
@@ -137,12 +141,19 @@ const BaugrundstueckStatistik = () => {
     const lines: string[] = [`<strong>${plz}</strong> ${note ?? ""}`];
     if (a) {
       lines.push(`Inserate: ${a.count}`);
-      if (a.sumFlaeche > 0 && a.sumPreis > 0) {
-        // Σpreis / Σfläche = flächengewichteter €/m²-Schnitt
-        // (jeder Quadratmeter zählt gleich, große Grundstücke gewichten stärker)
-        const avg = a.sumPreis / a.sumFlaeche;
-        lines.push(`Ø ${formatEur(avg)} / m² (flächengewichtet)`);
-        lines.push(`Σ Fläche: ${new Intl.NumberFormat("de-DE").format(Math.round(a.sumFlaeche))} m²`);
+      if (a.pricesPerSqm.length > 0) {
+        const sorted = [...a.pricesPerSqm].sort((x, y) => x - y);
+        const n = sorted.length;
+        const median =
+          n % 2 === 1
+            ? sorted[(n - 1) / 2]
+            : (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+        lines.push(`Median ${formatEur(median)} / m²`);
+        if (a.sumFlaeche > 0) {
+          lines.push(
+            `Σ Fläche: ${new Intl.NumberFormat("de-DE").format(Math.round(a.sumFlaeche))} m²`,
+          );
+        }
       }
     } else {
       lines.push(`Keine Inserate`);
