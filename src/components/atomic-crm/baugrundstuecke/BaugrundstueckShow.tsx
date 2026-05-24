@@ -985,17 +985,25 @@ const BaurechtCard = () => {
                 <span className="text-muted-foreground">Wohnfläche (WFL)</span>
                 <span>{fmtQm(r.wohnflaeche_qm)}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Gemarkung</span>
-                <span>{r.gemarkung ?? "—"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Flur</span>
-                <span>{r.flur ?? "—"}</span>
-              </div>
-              <div className="flex justify-between col-span-2">
-                <span className="text-muted-foreground">Flurstück</span>
-                <span className="font-mono text-xs">{r.flurstueck ?? "—"}</span>
+              {/* Kataster — eigene Einheit mit Trennlinien */}
+              <div className="col-span-2 border-t border-b py-2 my-1 space-y-1">
+                <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+                  Kataster
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Gemarkung</span>
+                    <span>{r.gemarkung ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Flur</span>
+                    <span>{r.flur ?? "—"}</span>
+                  </div>
+                  <div className="flex justify-between col-span-2">
+                    <span className="text-muted-foreground">Flurstück</span>
+                    <span className="font-mono text-xs">{r.flurstueck ?? "—"}</span>
+                  </div>
+                </div>
               </div>
               <div className="flex justify-between col-span-2">
                 <span className="text-muted-foreground">§34 BauGB</span>
