@@ -35,6 +35,7 @@ export type Baugrundstueck = {
   anbieter_typ?: string | null;
   anbieter_aktiv_seit?: string | null;
   hat_anschrift?: boolean | null;
+  locality_full?: string | null;
   notiz?: string | null;
   favorit?: boolean | null;
   triage?: string | null;

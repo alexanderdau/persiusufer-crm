@@ -16,6 +16,14 @@ import { BAUG_STATUSES, BAUG_TRIAGE, type Baugrundstueck } from "./index";
 import { useBaugFavoriten } from "./useBaugFavoriten";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
+
+const cleanText = (s?: string | null): string => {
+  if (!s) return "";
+  const ta = document.createElement("textarea");
+  ta.innerHTML = s;
+  return ta.value.replace(/[\u00ad\u200b-\u200f\u2060\ufeff]/g, "").trim();
+};
+
 const formatEur = (value?: number | null) =>
   value == null
     ? "—"
@@ -97,8 +105,8 @@ const OrtCell = () => {
     <div className="text-sm">
       <div className="text-muted-foreground">{r.plz}</div>
       <div>
-        {r.ort}
-        {r.ortsteil ? ` · ${r.ortsteil}` : ""}
+        {cleanText(r.ort)}
+        {r.ortsteil ? ` · ${cleanText(r.ortsteil)}` : ""}
       </div>
     </div>
   );
@@ -112,8 +120,8 @@ const TitelCell = () => {
       <div className="font-medium line-clamp-2 flex items-start gap-1.5">
         {r.hat_anschrift && (
           <span
-            className="inline-block size-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"
-            title="Konkrete Anschrift in der Anzeige erkannt (Straßenname + Hausnummer)"
+            className="inline-block size-2 rounded-full bg-red-500 mt-1.5 shrink-0"
+            title="Vollständige Anschrift in der Anzeige (Straße + Hausnummer im Standort)"
             aria-label="Anschrift in Anzeige"
           />
         )}

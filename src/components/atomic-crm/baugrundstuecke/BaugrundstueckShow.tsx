@@ -17,6 +17,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { BAUG_STATUSES, BAUG_TRIAGE, type Baugrundstueck } from "./index";
 import { useBaugFavoriten } from "./useBaugFavoriten";
 
+
+// Räumt HTML-Entities + unsichtbare Zeichen aus Altdaten (vor Parser-Fix v2).
+const cleanText = (s?: string | null): string => {
+  if (!s) return "";
+  const ta = document.createElement("textarea");
+  ta.innerHTML = s;
+  return ta.value.replace(/[\u00ad\u200b-\u200f\u2060\ufeff]/g, "").trim();
+};
+
 const formatEur = (value?: number | null) =>
   value == null
     ? "—"
@@ -83,7 +92,10 @@ const Anschrift = () => {
   const r = useRecordContext<Baugrundstueck>();
   const notify = useNotify();
   if (!r?.plz) return null;
-  const anschrift = `${r.plz} ${r.ort}${r.ortsteil ? " · " + r.ortsteil : ""}`;
+  const anschrift = cleanText(
+    r.locality_full ||
+      `${r.plz} ${r.ort ?? ""}${r.ortsteil ? " · " + r.ortsteil : ""}`,
+  );
   const gmaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(anschrift)}`;
   return (
     <div className="flex flex-wrap items-center gap-2">
