@@ -266,8 +266,9 @@ RE_VIEWS = re.compile(
 RE_RESERVIERT = re.compile(r'Reserviert', re.IGNORECASE)
 RE_GELOESCHT = re.compile(r'Gel(ö|&ouml;)scht', re.IGNORECASE)
 # Strikter Match: nur class endet auf "userprofile-vip" (nicht userprofile-vip-details*)
+# Erlaubt verschachtelte <a>-Tags um den Namen herum
 RE_ANBIETER_NAME = re.compile(
-    r'class="[^"]*\buserprofile-vip"[^>]*>\s*([^<]+?)\s*</span>', re.DOTALL
+    r'class="[^"]*\buserprofile-vip"[^>]*>(.*?)</span>', re.DOTALL
 )
 _GENERIC_USER_NAMES = {"Privater Nutzer", "Gewerblicher Nutzer", ""}
 RE_ANBIETER_TYP = re.compile(
