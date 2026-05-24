@@ -278,6 +278,47 @@ RE_ANBIETER_AKTIV = re.compile(
     r'<span class="userprofile-vip-details-text">\s*Aktiv seit\s*(\d{2}\.\d{2}\.\d{4})\s*</span>',
     re.DOTALL,
 )
+# Heuristik-Regex für Baurecht-Felder aus Beschreibung
+RE_BAUERWARTUNG = re.compile(
+    r"\bBauerwartungs?land\b|\bnicht\s+baureif\b|\bvor\s+B-?Plan\b|noch\s+nicht\s+ausgewiesen",
+    re.IGNORECASE,
+)
+RE_GRZ = re.compile(
+    r"\bGRZ\b[^\w]{0,5}(0[,.]\d{1,2})", re.IGNORECASE
+)
+RE_GFZ = re.compile(
+    r"\bGFZ\b[^\w]{0,5}(\d[,.]\d{1,2})", re.IGNORECASE
+)
+RE_VOLLGESCH = re.compile(
+    r"(\d)\s*Vollgeschoss", re.IGNORECASE
+)
+RE_BPLAN_NUMMER = re.compile(
+    r"B-?Plan(?:[- ]Nr\.?)?\s*(?:Nr\.?)?\s*([\w./-]+)", re.IGNORECASE
+)
+RE_BPLAN_VORHANDEN = re.compile(
+    r"\b(?:rechtskräftiger?|qualifizierter?|gültiger?|bestehender?)\s+B-?Plan|"
+    r"\bB-?Plan\s+(?:liegt\s+vor|vorhanden|festgesetzt)|"
+    r"§\s*30\s+BauGB|§\s*34\s+BauGB",
+    re.IGNORECASE,
+)
+RE_TEILBAR = re.compile(
+    r"\b(?:real\s+)?teilbar(?:es)?\b|\bTeilung\s+möglich|"
+    r"\bAufteilung\b|\bin\s+\d+\s+Parzellen?",
+    re.IGNORECASE,
+)
+RE_ERSCHL_VOLL = re.compile(
+    r"\b(?:voll|komplett|fertig)\s*erschlossen|\bvollerschlossen\b",
+    re.IGNORECASE,
+)
+RE_ERSCHL_TEIL = re.compile(
+    r"\bteil(?:weise\s+)?erschlossen|\bteilerschlossen\b",
+    re.IGNORECASE,
+)
+RE_ERSCHL_UN = re.compile(
+    r"\bunerschlossen\b|\bnoch\s+nicht\s+erschlossen|\bohne\s+Erschliessung",
+    re.IGNORECASE,
+)
+
 RE_DOC = re.compile(
     r'<a\s+href="(https://dl\.kleinanzeigen-user-content\.de/dokumente/[^"]+)"[^>]*class="[^"]*ad-documents[^"]*"[^>]*>'
     r'.*?<span\s+class="iconlist-text[^"]*">\s*([^<]+?)\s*</span>',
@@ -580,6 +621,109 @@ def upload_images(kid: int, image_urls: list[str], referer: str) -> tuple[str | 
 # ───────────────────────────────────────────────────────────────────────────
 
 
+
+def parse_baurecht(beschreibung: str | None) -> dict:
+    """Heuristik-Parser für Baurecht-Felder aus dem Beschreibungstext."""
+    if not beschreibung:
+        return {}
+    out: dict = {}
+    b = beschreibung
+    # Bauerwartungsland
+    if RE_BAUERWARTUNG.search(b):
+        out["bauerwartungsland"] = True
+    # GRZ
+    m = RE_GRZ.search(b)
+    if m:
+        try:
+            out["grz"] = float(m.group(1).replace(",", "."))
+        except ValueError:
+            pass
+    # GFZ
+    m = RE_GFZ.search(b)
+    if m:
+        try:
+            out["gfz"] = float(m.group(1).replace(",", "."))
+        except ValueError:
+            pass
+    # Vollgeschosse
+    m = RE_VOLLGESCH.search(b)
+    if m:
+        try:
+            out["vollgeschosse"] = int(m.group(1))
+        except ValueError:
+            pass
+    # B-Plan
+    if RE_BPLAN_VORHANDEN.search(b):
+        out["bpl_vorhanden"] = True
+    m = RE_BPLAN_NUMMER.search(b)
+    if m and len(m.group(1)) <= 30:
+        out["bpl_nummer"] = m.group(1)
+    # Erschließung
+    if RE_ERSCHL_VOLL.search(b):
+        out["erschliessung"] = "voll"
+    elif RE_ERSCHL_TEIL.search(b):
+        out["erschliessung"] = "teilweise"
+    elif RE_ERSCHL_UN.search(b):
+        out["erschliessung"] = "unerschlossen"
+    # Teilbar
+    if RE_TEILBAR.search(b):
+        out["teilbar"] = True
+    return out
+
+
+def claude_analyse(beschreibung: str, titel: str) -> dict | None:
+    """Optional: Anthropic-Claude-Call für KI-Analyse.
+    Springt nur an wenn ANTHROPIC_API_KEY gesetzt. Liefert None bei Fehler.
+    """
+    key = os.environ.get("ANTHROPIC_API_KEY")
+    if not key or not beschreibung:
+        return None
+    prompt = f"""Du bist Immobilien-Investor. Analysiere folgendes Inserat eines Brandenburger Baugrundstücks und gib NUR valides JSON zurück, kein Fließtext.
+
+Titel: {titel}
+Beschreibung: {beschreibung[:4000]}
+
+Extrahiere genau diese Felder (alle optional, weglassen wenn nicht klar):
+- bauerwartungsland (bool): true wenn nicht baureif, Erwartungsland, vor B-Plan
+- grz (float, z.B. 0.4): Grundflächenzahl
+- gfz (float, z.B. 0.8): Geschossflächenzahl
+- vollgeschosse (int)
+- bpl_vorhanden (bool): rechtskräftiger B-Plan vorhanden
+- bpl_nummer (string)
+- erschliessung (string): "voll" | "teilweise" | "unerschlossen"
+- teilbar (bool)
+- bebaubarkeit_kurz (string, max 200 Zeichen): ein Satz für den Investor
+- risiken (string[]): konkrete Risiken (Altlasten, Naturschutz, Erbpacht, Hochwasser, Denkmalschutz etc.)
+
+Antwort nur als JSON-Objekt, keine Erklärungen."""
+
+    try:
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=json.dumps({
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 600,
+                "messages": [{"role": "user", "content": prompt}],
+            }).encode("utf-8"),
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            resp = json.loads(r.read())
+        text = resp.get("content", [{}])[0].get("text", "").strip()
+        # JSON aus dem Text extrahieren
+        m = re.search(r"\{.*\}", text, re.DOTALL)
+        if not m:
+            return None
+        return json.loads(m.group(0))
+    except Exception as e:
+        log(f"    KI-Analyse fail: {e}")
+        return None
+
+
 def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
     plz, ort, ortsteil = parse_plz_ort(item.ort_str)
     preis_eur, preis_vb = parse_price(item.price_str or detail.price_str)
@@ -587,6 +731,15 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
     # Titel ohne "Reserviert •" Prefix
     clean_title = re.sub(r'^(Reserviert\s*•\s*|Gelöscht\s*•\s*)+', '', item.title or detail.title).strip()
     locality_full = detail.locality or item.ort_str or None
+    # Baurecht aus Beschreibung extrahieren
+    baurecht = parse_baurecht(detail.desc)
+    ki = claude_analyse(detail.desc or "", detail.title or item.title or "")
+    if ki:
+        # KI-Werte überschreiben Heuristik (qualitativ besser)
+        for k, v in ki.items():
+            if v is not None and v != "":
+                baurecht[k] = v
+        baurecht["ki_analyse_at"] = datetime.now(timezone.utc).isoformat()
     # Roher Snapshot der Detail-Page in den Cache — bei Parser-Bugs später
     # lokal nach-parsbar, ohne kleinanzeigen.de erneut zu treffen.
     details_raw = {
@@ -639,6 +792,17 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "anbieter_typ": detail.anbieter_typ,
         "anbieter_aktiv_seit": detail.anbieter_aktiv_seit,
         "details_raw": details_raw,
+        "bauerwartungsland": baurecht.get("bauerwartungsland"),
+        "grz": baurecht.get("grz"),
+        "gfz": baurecht.get("gfz"),
+        "vollgeschosse": baurecht.get("vollgeschosse"),
+        "bpl_vorhanden": baurecht.get("bpl_vorhanden"),
+        "bpl_nummer": baurecht.get("bpl_nummer"),
+        "erschliessung": baurecht.get("erschliessung"),
+        "teilbar": baurecht.get("teilbar"),
+        "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
+        "risiken": baurecht.get("risiken"),
+        "ki_analyse_at": baurecht.get("ki_analyse_at"),
         "last_seen_at": datetime.now(timezone.utc).isoformat(),
     }
 

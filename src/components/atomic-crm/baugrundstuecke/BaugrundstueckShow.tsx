@@ -663,6 +663,85 @@ const ShowBody = () => {
           </CardContent>
         </Card>
 
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              Baurecht
+              {r.bauerwartungsland && (
+                <Badge variant="outline" className="border-amber-500 text-amber-700 bg-amber-50">
+                  Bauerwartungsland
+                </Badge>
+              )}
+              {r.baureif && !r.bauerwartungsland && (
+                <Badge variant="outline" className="border-green-500 text-green-700 bg-green-50">
+                  Baureif
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {r.bebaubarkeit_kurz && (
+              <p className="italic text-muted-foreground">
+                „{r.bebaubarkeit_kurz}"
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">GRZ</span>
+                <span>{r.grz ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">GFZ</span>
+                <span>{r.gfz ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Vollgeschosse</span>
+                <span>{r.vollgeschosse ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Teilbar</span>
+                <span>
+                  {r.teilbar === true ? "ja" : r.teilbar === false ? "nein" : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">B-Plan</span>
+                <span>
+                  {r.bpl_vorhanden ? r.bpl_nummer || "vorhanden" : r.bpl_vorhanden === false ? "—" : "?"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Erschließung</span>
+                <span>{r.erschliessung ?? "—"}</span>
+              </div>
+            </div>
+            {r.risiken && r.risiken.length > 0 && (
+              <div className="pt-2 border-t">
+                <div className="text-xs text-muted-foreground mb-1">
+                  Risiken (KI-Analyse):
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {r.risiken.map((rk) => (
+                    <Badge
+                      key={rk}
+                      variant="outline"
+                      className="border-red-500 text-red-700 bg-red-50"
+                    >
+                      {rk}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {r.ki_analyse_at && (
+              <div className="text-[10px] text-muted-foreground pt-1">
+                KI-Analyse: {new Date(r.ki_analyse_at).toLocaleString("de-DE")}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Anbieter</CardTitle>

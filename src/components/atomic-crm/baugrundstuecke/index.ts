@@ -37,6 +37,18 @@ export type Baugrundstueck = {
   hat_anschrift?: boolean | null;
   locality_full?: string | null;
   dokumente_anzahl?: number | null;
+  bauerwartungsland?: boolean | null;
+  baureif?: boolean | null;
+  grz?: number | null;
+  gfz?: number | null;
+  vollgeschosse?: number | null;
+  bpl_vorhanden?: boolean | null;
+  bpl_nummer?: string | null;
+  erschliessung?: string | null;
+  teilbar?: boolean | null;
+  bebaubarkeit_kurz?: string | null;
+  risiken?: string[] | null;
+  ki_analyse_at?: string | null;
   notiz?: string | null;
   favorit?: boolean | null;
   triage?: string | null;

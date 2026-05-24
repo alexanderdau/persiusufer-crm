@@ -129,6 +129,33 @@ const TitelCell = () => {
         )}
         <span>{r.title}</span>
       </div>
+      <div className="flex flex-wrap gap-1 mt-1">
+        {r.bauerwartungsland && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-500 text-amber-700 bg-amber-50">
+            Bauerwartungsland
+          </Badge>
+        )}
+        {r.bpl_vorhanden && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 border-blue-500 text-blue-700 bg-blue-50">
+            B-Plan
+          </Badge>
+        )}
+        {r.grz != null && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0">
+            GRZ {r.grz}
+          </Badge>
+        )}
+        {r.gfz != null && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0">
+            GFZ {r.gfz}
+          </Badge>
+        )}
+        {r.teilbar && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0">
+            teilbar
+          </Badge>
+        )}
+      </div>
       {r.tags && r.tags.length > 0 && (
         <div className="flex gap-1 mt-1 flex-wrap">
           {r.tags.map((t) => (
@@ -250,6 +277,25 @@ const Sidebar = () => {
             <ToggleFilterButton
               label="über 2.000 m²"
               value={{ "flaeche_qm@gte": 2000 }}
+            />
+          </FilterCategory>
+
+          <FilterCategory label="Baurecht">
+            <ToggleFilterButton
+              label="Nur baureif"
+              value={{ baureif: true }}
+            />
+            <ToggleFilterButton
+              label="Bauerwartungsland"
+              value={{ bauerwartungsland: true }}
+            />
+            <ToggleFilterButton
+              label="Mit B-Plan"
+              value={{ bpl_vorhanden: true }}
+            />
+            <ToggleFilterButton
+              label="Teilbar"
+              value={{ teilbar: true }}
             />
           </FilterCategory>
 

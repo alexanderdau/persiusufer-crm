@@ -78,8 +78,10 @@ const BaugrundstueckStatistik = () => {
       const sb = getSupabaseClient();
       let q = sb
         .from("kleinanzeigen_grundstueck")
-        .select("plz, preis_eur, flaeche_qm")
+        .select("plz, preis_eur, flaeche_qm, bauerwartungsland")
         .not("plz", "is", null)
+        // Bauerwartungsland zählt nicht in den €/m²-Median (kein baureifes Land)
+        .or("bauerwartungsland.is.null,bauerwartungsland.eq.false")
         .limit(5000);
       for (const [k, v] of Object.entries(dbFilter)) {
         if (k.includes("@gte")) q = q.gte(k.split("@")[0], v as any);
