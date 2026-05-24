@@ -2,13 +2,17 @@ import { useEffect, useState } from "react";
 import { useRecordContext, useUpdate, useNotify } from "ra-core";
 import { Show } from "@/components/admin/show";
 import {
+  ChevronLeft,
+  ChevronRight,
   Copy,
   ExternalLink,
   FileText,
   Heart,
   Loader2,
   MapPin,
+  Maximize2,
   TreePine,
+  X,
 } from "lucide-react";
 import {
   Dialog,
@@ -54,6 +58,8 @@ const formatQm = (value?: number | null) =>
 const BilderSlider = () => {
   const r = useRecordContext<Baugrundstueck>();
   const [idx, setIdx] = useState(0);
+  const [lightbox, setLightbox] = useState(false);
+
   if (!r?.bilder_paths || r.bilder_paths.length === 0) {
     return (
       <div className="aspect-video bg-muted rounded flex items-center justify-center">
@@ -63,15 +69,74 @@ const BilderSlider = () => {
   }
   const base = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/kleinanzeigen-bilder/`;
   const paths = r.bilder_paths;
+  const total = paths.length;
+  const prev = () => setIdx((i) => (i - 1 + total) % total);
+  const next = () => setIdx((i) => (i + 1) % total);
+
+  // Keyboard-Steuerung in der Lightbox
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") prev();
+      else if (e.key === "ArrowRight") next();
+      else if (e.key === "Escape") setLightbox(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightbox, total]);
+
   return (
     <div className="space-y-2">
-      <div className="aspect-video bg-muted rounded overflow-hidden">
+      <div
+        className="relative aspect-video bg-muted rounded overflow-hidden cursor-zoom-in group"
+        onClick={() => setLightbox(true)}
+        role="button"
+        aria-label="Bild vergrößern"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") setLightbox(true);
+        }}
+      >
         <img
           src={base + paths[idx]}
-          alt={`Bild ${idx + 1} von ${paths.length}`}
+          alt={`Bild ${idx + 1} von ${total}`}
           className="w-full h-full object-contain"
         />
+        {total > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                prev();
+              }}
+              aria-label="Vorheriges Bild"
+              className="absolute left-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-background/80 hover:bg-background border flex items-center justify-center"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                next();
+              }}
+              aria-label="Nächstes Bild"
+              className="absolute right-2 top-1/2 -translate-y-1/2 size-9 rounded-full bg-background/80 hover:bg-background border flex items-center justify-center"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-background/80 text-xs">
+              {idx + 1} / {total}
+            </div>
+          </>
+        )}
+        <div className="absolute top-2 right-2 size-8 rounded-full bg-background/80 group-hover:bg-background border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <Maximize2 className="size-4" />
+        </div>
       </div>
+
       <div className="flex gap-2 overflow-x-auto pb-2">
         {paths.map((p, i) => (
           <button
@@ -91,8 +156,64 @@ const BilderSlider = () => {
         ))}
       </div>
       <div className="text-xs text-muted-foreground">
-        {paths.length} Bild{paths.length === 1 ? "" : "er"}
+        {total} Bild{total === 1 ? "" : "er"}
       </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightbox(false);
+            }}
+            aria-label="Schließen"
+            className="absolute top-4 right-4 size-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+          >
+            <X className="size-5" />
+          </button>
+
+          <img
+            src={base + paths[idx]}
+            alt={`Bild ${idx + 1} von ${total}`}
+            className="max-w-[95vw] max-h-[90vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prev();
+                }}
+                aria-label="Vorheriges Bild"
+                className="absolute left-4 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+              >
+                <ChevronLeft className="size-7" />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  next();
+                }}
+                aria-label="Nächstes Bild"
+                className="absolute right-4 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center"
+              >
+                <ChevronRight className="size-7" />
+              </button>
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded bg-white/10 text-white text-sm">
+                {idx + 1} / {total}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
