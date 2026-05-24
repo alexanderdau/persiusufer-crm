@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { useListContext, useRecordContext } from "ra-core";
-import { Heart, Map as MapIcon, MapPin, TreePine } from "lucide-react";
+import { useListContext, useNotify, useRecordContext } from "ra-core";
+import { getSupabaseClient } from "../providers/supabase/supabase";
+import { Heart, Loader2, Map as MapIcon, MapPin, Sparkles, TreePine } from "lucide-react";
 
 import { DataTable } from "@/components/admin/data-table";
 import { List } from "@/components/admin/list";
@@ -51,6 +52,67 @@ const formatDate = (value?: string | null) => {
     month: "2-digit",
     year: "numeric",
   });
+};
+
+const KiCell = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const notify = useNotify();
+  const [running, setRunning] = useState(false);
+  if (!r) return null;
+  const done = !!r.ki_analyse_at;
+  const onClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (running) return;
+    setRunning(true);
+    try {
+      const { data, error } = await getSupabaseClient().functions.invoke(
+        "kleinanzeigen-ki-analyse",
+        { body: { kid: r.kid } },
+      );
+      if (error) {
+        notify(`KI: ${error.message ?? error}`, { type: "error" });
+      } else if ((data as any)?.error) {
+        notify(`KI: ${(data as any).error}`, { type: "error" });
+      } else {
+        const changed = (data as any)?.changed ?? 0;
+        notify(`KI: +${changed} Feld${changed === 1 ? "" : "er"}`, {
+          type: "success",
+        });
+      }
+    } catch (err: any) {
+      notify(`KI-Fehler: ${err?.message ?? err}`, { type: "error" });
+    } finally {
+      setRunning(false);
+    }
+  };
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="size-6 hover:bg-transparent"
+      disabled={running}
+      onClick={onClick}
+      aria-label={done ? "KI erneut analysieren" : "KI-Analyse starten"}
+      title={
+        done
+          ? `KI-Analyse: ${new Date(r.ki_analyse_at!).toLocaleString("de-DE")} — Klick: erneut`
+          : "KI-Analyse starten"
+      }
+    >
+      {running ? (
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+      ) : (
+        <Sparkles
+          className={
+            done
+              ? "size-4 fill-violet-200 text-violet-600"
+              : "size-4 text-muted-foreground"
+          }
+        />
+      )}
+    </Button>
+  );
 };
 
 const FavoritHerz = () => {
@@ -238,6 +300,17 @@ const Sidebar = () => {
             ))}
           </FilterCategory>
 
+          <FilterCategory icon={<Sparkles className="size-4" />} label="KI-Analyse">
+            <ToggleFilterButton
+              label="Bereits analysiert"
+              value={{ "ki_analyse_at@not.is": null }}
+            />
+            <ToggleFilterButton
+              label="Noch nicht analysiert"
+              value={{ "ki_analyse_at@is": null }}
+            />
+          </FilterCategory>
+
           <FilterCategory icon={<TreePine className="size-4" />} label="Triage">
             {BAUG_TRIAGE.map((t) => (
               <ToggleFilterButton
@@ -412,6 +485,9 @@ const BaugrundstueckList = () => {
       <DataTable rowClick="show">
         <DataTable.Col label="" disableSort>
           <FavoritHerz />
+        </DataTable.Col>
+        <DataTable.Col label="" disableSort>
+          <KiCell />
         </DataTable.Col>
         <DataTable.Col label="" disableSort>
           <Thumb />
