@@ -477,12 +477,12 @@ def parse_plz_ort(ort_str: str) -> tuple[str | None, str | None, str | None]:
     m_ot = re.search(r"^(.+?)\s*[,]?\s*OT\s+(.+)$", rest, re.IGNORECASE)
     if m_ot:
         ort_, ot_ = m_ot.group(1).strip(), m_ot.group(2).strip()
-        return plz, ort_, (None if ot_.lower() == ort_.lower() else ot_)
+        return plz, ort_, (None if _norm_name(ot_) == _norm_name(ort_) else ot_)
     # Fallback: "Stadt - Ortsteil"
     if " - " in rest:
         ort, ortsteil = rest.split(" - ", 1)
         ort, ortsteil = ort.strip(), ortsteil.strip()
-        return plz, ort, (None if ortsteil.lower() == ort.lower() else ortsteil)
+        return plz, ort, (None if _norm_name(ortsteil) == _norm_name(ort) else ortsteil)
     # Sonst: alles ist Ort
     return plz, rest, None
 
@@ -743,6 +743,17 @@ def nominatim_geocode(query: str) -> tuple[float, float] | None:
     except Exception as e:
         log(f"    Nominatim fail: {e}")
         return None
+
+
+
+def _norm_name(n: str | None) -> str:
+    """Normalisiert Ortsnamen für Vergleich: '(Mark)', 'an der Havel' etc. entfernen."""
+    if not n:
+        return ""
+    x = n.lower()
+    x = re.sub(r"\s*\([^)]*\)\s*", "", x)
+    x = re.sub(r"\s+(an der|an|am|im|auf|in|bei|ob der|ob)\s+.+$", "", x)
+    return x.strip()
 
 
 def parse_baurecht(beschreibung: str | None) -> dict:
@@ -1021,7 +1032,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
             else (
                 baurecht.get("ortsteil_ki")
                 if baurecht.get("ortsteil_ki")
-                and (not ort or baurecht.get("ortsteil_ki").lower() != ort.lower())
+                and _norm_name(baurecht.get("ortsteil_ki")) != _norm_name(ort)
                 else None
             )
         ),
