@@ -1267,7 +1267,14 @@ const ShowBody = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Anbieter</CardTitle>
+            <CardTitle className="text-base flex items-center gap-2">
+              Anbieter
+              {r.eigenangebot && (
+                <Badge variant="outline" className="border-emerald-500 text-emerald-700 bg-emerald-50">
+                  Eigenangebot
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">

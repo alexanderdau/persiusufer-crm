@@ -755,6 +755,19 @@ def nominatim_geocode(query: str) -> tuple[float, float] | None:
 
 
 
+
+EIGENE_FIRMEN_PATTERNS = [
+    re.compile(r"persiusufer", re.IGNORECASE),
+    # weitere bei Bedarf
+]
+
+
+def _is_eigenangebot(name: str | None) -> bool:
+    if not name:
+        return False
+    return any(p.search(name) for p in EIGENE_FIRMEN_PATTERNS)
+
+
 def _norm_name(n: str | None) -> str:
     """Normalisiert Ortsnamen für Vergleich: '(Mark)', 'an der Havel' etc. entfernen."""
     if not n:
@@ -1061,6 +1074,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "inserat_erstellt": detail.created_date,
         "aufrufe": detail.aufrufe,
         "anbieter_name": detail.anbieter_name,
+        "eigenangebot": _is_eigenangebot(detail.anbieter_name),
         "anbieter_typ": detail.anbieter_typ,
         "anbieter_aktiv_seit": detail.anbieter_aktiv_seit,
         "details_raw": details_raw,

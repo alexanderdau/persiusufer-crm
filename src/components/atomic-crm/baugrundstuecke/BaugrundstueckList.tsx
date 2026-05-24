@@ -222,6 +222,11 @@ const TitelCell = () => {
             §34 Umgebung
           </Badge>
         )}
+        {r.eigenangebot && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 border-emerald-600 text-emerald-800 bg-emerald-100 font-semibold">
+            Eigenangebot
+          </Badge>
+        )}
         {r.bautraegerfrei === true && (
           <Badge variant="outline" className="text-[10px] px-1 py-0 border-emerald-500 text-emerald-700 bg-emerald-50">
             Bauträgerfrei
@@ -409,6 +414,10 @@ const Sidebar = () => {
           </FilterCategory>
 
           <FilterCategory label="Anbieter">
+            <ToggleFilterButton
+              label="Eigenangebot"
+              value={{ eigenangebot: true }}
+            />
             <ToggleFilterButton
               label="Privater Nutzer"
               value={{ anbieter_typ: "privat" }}
