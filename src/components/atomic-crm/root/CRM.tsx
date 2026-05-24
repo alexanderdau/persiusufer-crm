@@ -22,6 +22,10 @@ import { MobileDashboard } from "../dashboard/MobileDashboard";
 import deals from "../deals";
 import zvgAkten from "../zvgAkten";
 import baugrundstuecke from "../baugrundstuecke";
+import React from "react";
+const BaugrundstueckStatistik = React.lazy(
+  () => import("../baugrundstuecke/BaugrundstueckStatistik"),
+);
 import { Layout } from "../layout/Layout";
 import { MobileLayout } from "../layout/MobileLayout";
 import { SignupPage } from "../login/SignupPage";
@@ -266,6 +270,10 @@ const DesktopAdmin = (
         <Route path={SettingsPage.path} element={<SettingsPage />} />
         <Route path={ImportPage.path} element={<ImportPage />} />
         <Route path={ChangelogPage.path} element={<ChangelogPage />} />
+        <Route
+          path="/kleinanzeigen_grundstueck/statistik"
+          element={<BaugrundstueckStatistik />}
+        />
       </CustomRoutes>
       <Resource name="deals" {...deals} />
       <Resource name="zvg_akte" {...zvgAkten} />

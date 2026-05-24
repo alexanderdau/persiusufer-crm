@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { useListContext, useRecordContext } from "ra-core";
-import { Heart, MapPin, TreePine } from "lucide-react";
+import { Heart, Map as MapIcon, MapPin, TreePine } from "lucide-react";
 
 import { DataTable } from "@/components/admin/data-table";
 import { List } from "@/components/admin/list";
@@ -313,13 +314,27 @@ const ListSearch = () => {
   }, [q]);
 
   return (
-    <Input
-      type="search"
-      placeholder="Titel, Ort oder PLZ (z.B. 154 für PLZ-Prefix)…"
-      value={q}
-      onChange={(e) => setQ(e.target.value)}
-      className="max-w-sm mb-3"
-    />
+    <div className="flex items-center gap-2 mb-3">
+      <Input
+        type="search"
+        placeholder="Titel, Ort oder PLZ (z.B. 154 für PLZ-Prefix)…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        className="max-w-sm"
+      />
+      <Button variant="outline" size="sm" asChild>
+        <Link
+          to={{
+            pathname: "/kleinanzeigen_grundstueck/statistik",
+            search: window.location.hash.includes("?")
+              ? "?" + window.location.hash.split("?")[1]
+              : "",
+          }}
+        >
+          <MapIcon className="size-4 mr-2" /> Karte
+        </Link>
+      </Button>
+    </div>
   );
 };
 
