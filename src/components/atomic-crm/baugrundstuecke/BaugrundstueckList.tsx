@@ -222,6 +222,16 @@ const TitelCell = () => {
             §34 Umgebung
           </Badge>
         )}
+        {r.bautraegerfrei === true && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 border-emerald-500 text-emerald-700 bg-emerald-50">
+            Bauträgerfrei
+          </Badge>
+        )}
+        {r.bautraegerfrei === false && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-500 text-orange-700 bg-orange-50">
+            BT-gebunden
+          </Badge>
+        )}
         {r.baubarkeit_typ?.map((t) => (
           <Badge
             key={t}
@@ -387,6 +397,14 @@ const Sidebar = () => {
             <ToggleFilterButton
               label="§34 Umgebungsbebauung"
               value={{ paragraph_34: true }}
+            />
+            <ToggleFilterButton
+              label="Bauträgerfrei"
+              value={{ bautraegerfrei: true }}
+            />
+            <ToggleFilterButton
+              label="Bauträger-gebunden"
+              value={{ bautraegerfrei: false }}
             />
           </FilterCategory>
 

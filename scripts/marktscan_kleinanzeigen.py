@@ -301,6 +301,20 @@ RE_BPLAN_VORHANDEN = re.compile(
     r"§\s*30\s+BauGB",
     re.IGNORECASE,
 )
+RE_BAUTRAEGER_FREI = re.compile(
+    r"\bbautr(?:ä|ae)gerfrei\b|"
+    r"\bohne\s+Bautr(?:ä|ae)ger(?:bindung)?\b|"
+    r"\bkeine?\s+Bautr(?:ä|ae)gerbindung\b|"
+    r"\bfrei(?:e)?r?\s+Architektenwahl\b",
+    re.IGNORECASE,
+)
+RE_BAUTRAEGER_GEBUNDEN = re.compile(
+    r"\bbautr(?:ä|ae)gergebunden\b|"
+    r"\bmit\s+Bautr(?:ä|ae)gerbindung\b|"
+    r"\bnur\s+(?:mit|in\s+Verbindung\s+mit)\s+(?:unserem\s+)?Bautr(?:ä|ae)ger\b",
+    re.IGNORECASE,
+)
+
 RE_BAUBARKEIT = re.compile(
     r"\b(Mehrfamilienhaus|MFH|Doppelhaush(?:ä|ae)lfte|Doppelhaus|DHH|"
     r"Einfamilienhaus\s*(?:mit\s+)?Einliegerwohnung|EFH\s*[/+]\s*EW|EFH/EW|"
@@ -806,6 +820,11 @@ def parse_baurecht(beschreibung: str | None) -> dict:
                 out["wohnflaeche_qm"] = v
         except ValueError:
             pass
+    # Bauträgerfrei / -gebunden
+    if RE_BAUTRAEGER_GEBUNDEN.search(b):
+        out["bautraegerfrei"] = False
+    elif RE_BAUTRAEGER_FREI.search(b):
+        out["bautraegerfrei"] = True
     # Provisionssatz aus Beschreibung
     m = RE_PROV_SATZ.search(b)
     if m:
@@ -990,6 +1009,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "grundflaeche_qm": baurecht.get("grundflaeche_qm"),
         "baufeld_qm": baurecht.get("baufeld_qm"),
         "wohnflaeche_qm": baurecht.get("wohnflaeche_qm"),
+        "bautraegerfrei": baurecht.get("bautraegerfrei"),
         "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
         "risiken": baurecht.get("risiken"),
         "ki_analyse_at": baurecht.get("ki_analyse_at"),
