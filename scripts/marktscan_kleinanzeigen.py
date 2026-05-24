@@ -44,11 +44,11 @@ if not (SUPABASE_URL and SUPABASE_KEY):
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "100"))
 # Per-Inserat-Throttle (kleinanzeigen.de-Schonung zwischen Detail-Requests).
 # Default niedrig, weil wir pro Seite eh schon 10 s warten.
-THROTTLE_MIN = float(os.environ.get("THROTTLE_MIN", "1.0"))
-THROTTLE_MAX = float(os.environ.get("THROTTLE_MAX", "2.5"))
+THROTTLE_MIN = float(os.environ.get("THROTTLE_MIN", "0.5"))
+THROTTLE_MAX = float(os.environ.get("THROTTLE_MAX", "1.0"))
 # Per-Seite-Throttle (random 8-12 s zwischen Listing-Seiten)
-PAGE_THROTTLE_MIN = float(os.environ.get("PAGE_THROTTLE_MIN", "8.0"))
-PAGE_THROTTLE_MAX = float(os.environ.get("PAGE_THROTTLE_MAX", "12.0"))
+PAGE_THROTTLE_MIN = float(os.environ.get("PAGE_THROTTLE_MIN", "3.0"))
+PAGE_THROTTLE_MAX = float(os.environ.get("PAGE_THROTTLE_MAX", "5.0"))
 BUCKET = "kleinanzeigen-bilder"
 
 BASE = "https://www.kleinanzeigen.de"
