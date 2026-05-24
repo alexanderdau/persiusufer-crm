@@ -271,7 +271,7 @@ const DesktopAdmin = (
         <Route path={ImportPage.path} element={<ImportPage />} />
         <Route path={ChangelogPage.path} element={<ChangelogPage />} />
         <Route
-          path="/kleinanzeigen_grundstueck/statistik"
+          path="/baugrundstuecke-statistik"
           element={<BaugrundstueckStatistik />}
         />
       </CustomRoutes>

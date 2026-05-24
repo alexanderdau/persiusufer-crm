@@ -371,7 +371,7 @@ const ListSearch = () => {
       <Button variant="outline" size="sm" asChild>
         <Link
           to={{
-            pathname: "/kleinanzeigen_grundstueck/statistik",
+            pathname: "/baugrundstuecke-statistik",
             search: window.location.hash.includes("?")
               ? "?" + window.location.hash.split("?")[1]
               : "",
