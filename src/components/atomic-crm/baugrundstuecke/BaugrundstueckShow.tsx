@@ -32,6 +32,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getSupabaseClient } from "../providers/supabase/supabase";
+import {
+  MapContainer,
+  TileLayer,
+  WMSTileLayer,
+  Marker,
+  Popup,
+} from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import plzBbGeo from "/data/plz-brandenburg.geojson?url";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -903,6 +913,134 @@ const BaubarkeitChips = () => {
 };
 
 
+
+const FlurkarteCard = () => {
+  const r = useRecordContext<Baugrundstueck>();
+  const [center, setCenter] = useState<[number, number] | null>(null);
+
+  // Bedingung: Brandenburg + alle 3 Kataster-Felder
+  const eligible = !!(
+    r &&
+    (r.state_abbr === "BB" || !r.state_abbr) &&
+    r.gemarkung &&
+    r.flur &&
+    r.flurstueck
+  );
+
+  useEffect(() => {
+    if (!eligible || !r?.plz) return;
+    let cancelled = false;
+    fetch("/data/plz-brandenburg.geojson")
+      .then((res) => res.json())
+      .then((g: any) => {
+        if (cancelled) return;
+        const feat = g.features?.find(
+          (f: any) => f.properties?.plz === r.plz,
+        );
+        if (!feat) return;
+        // Centroid grob aus Bounding-Box der Geometrie
+        const coords: number[][] = (
+          feat.geometry.type === "MultiPolygon"
+            ? feat.geometry.coordinates[0][0]
+            : feat.geometry.coordinates[0]
+        ) as number[][];
+        let lat = 0,
+          lon = 0;
+        for (const c of coords) {
+          lon += c[0];
+          lat += c[1];
+        }
+        lat /= coords.length;
+        lon /= coords.length;
+        setCenter([lat, lon]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [eligible, r?.plz]);
+
+  if (!r || !eligible) return null;
+
+  const viewerUrl = `https://brandenburgviewer.geobasis-bb.de/`;
+  const borisUrl = `https://www.boris-brandenburg.de/borisplus/?lang=de`;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">
+            Flurkarte (Brandenburg ALKIS)
+          </CardTitle>
+          <Badge variant="outline" className="text-[10px] font-mono">
+            {r.gemarkung} · Flur {r.flur} · Flst. {r.flurstueck}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {center ? (
+          <div className="rounded overflow-hidden border">
+            <MapContainer
+              center={center}
+              zoom={15}
+              style={{ height: 320, width: "100%" }}
+              scrollWheelZoom={false}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <WMSTileLayer
+                url="https://isk.geobasis-bb.de/ows/alkis_wms"
+                layers="adv_alkis_flurstuecke,adv_alkis_gebaeude"
+                format="image/png"
+                transparent={true}
+                version="1.3.0"
+                attribution="© GeoBasis-DE/LGB"
+              />
+              <Marker position={center}>
+                <Popup>
+                  <div style={{ fontSize: 12 }}>
+                    <strong>{r.ort}</strong>
+                    {r.ortsteil && <> · OT {r.ortsteil}</>}
+                    <br />
+                    Gemarkung {r.gemarkung}<br />
+                    Flur {r.flur} · Flst. {r.flurstueck}
+                  </div>
+                </Popup>
+              </Marker>
+            </MapContainer>
+          </div>
+        ) : (
+          <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground border rounded">
+            Karte lädt …
+          </div>
+        )}
+        <div className="flex gap-2 mt-3 flex-wrap">
+          <Button variant="outline" size="sm" asChild>
+            <a href={viewerUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-3 mr-1" />
+              BrandenburgViewer
+            </a>
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <a href={borisUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="size-3 mr-1" />
+              BORIS Brandenburg
+            </a>
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Karte: OpenStreetMap-Hintergrund + ALKIS-Overlay (LGB). Marker ist der
+          PLZ-Centroid — das genaue Flurstück siehst du in den eingeblendeten
+          ALKIS-Linien. Per Klick auf den Viewer-Button kannst du dort nach
+          Gemarkung/Flur/Flurstück suchen.
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
+
 const BaurechtCard = () => {
   const r = useRecordContext<Baugrundstueck>();
   const notify = useNotify();
@@ -1339,6 +1477,8 @@ const ShowBody = () => {
           </CardContent>
         </Card>
 
+
+        <FlurkarteCard />
 
         <BaurechtCard />
 
