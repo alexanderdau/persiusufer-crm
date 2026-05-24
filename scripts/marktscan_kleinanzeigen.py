@@ -894,6 +894,14 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
     # Titel ohne "Reserviert •" Prefix
     clean_title = re.sub(r'^(Reserviert\s*•\s*|Gelöscht\s*•\s*)+', '', item.title or detail.title).strip()
     locality_full = detail.locality or item.ort_str or None
+    # Bundesland-Präfix bei kleinanzeigen.de fälschlich im Ort drin:
+    # "14641 Brandenburg - Nauen" → "14641 Nauen"
+    if locality_full:
+        locality_full = re.sub(
+            r"(\d{5}\s+)?(Brandenburg|Berlin|Mecklenburg-Vorpommern|Sachsen|Sachsen-Anhalt)\s*-\s*",
+            r"\1",
+            locality_full,
+        )
     # Baurecht aus Beschreibung extrahieren
     baurecht = parse_baurecht(detail.desc)
     ki = claude_analyse(detail.desc or "", detail.title or item.title or "")
