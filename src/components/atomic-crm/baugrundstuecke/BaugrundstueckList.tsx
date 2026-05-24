@@ -17,7 +17,6 @@ import { ResponsiveFilters } from "../misc/ResponsiveFilters";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { BAUG_STATUSES, BAUG_TRIAGE, type Baugrundstueck } from "./index";
 import { useBaugFavoriten } from "./useBaugFavoriten";
-import { getSupabaseClient } from "../providers/supabase/supabase";
 
 
 const cleanText = (s?: string | null): string => {
@@ -539,18 +538,16 @@ const ListSearch = () => {
   );
 };
 
-const BaugrundstueckList = () => {
+const BaugrundstueckListLayout = () => {
+  const { isPending } = useListContext();
+  if (isPending) return null;
+
   return (
-    <List
-      resource="kleinanzeigen_grundstueck"
-      sort={{ field: "last_seen_at", order: "DESC" }}
-      perPage={25}
-      filterDefaultValues={{ status: "aktiv" }}
-      aside={<Sidebar />}
-      title="Baugrundstücke (kleinanzeigen.de)"
-    >
-      <ListSearch />
-      <DataTable rowClick="show">
+    <div className="flex flex-row gap-8">
+      <Sidebar />
+      <div className="w-full flex flex-col gap-4">
+        <ListSearch />
+        <DataTable rowClick="show">
         <DataTable.Col label="" disableSort>
           <FavoritHerz />
         </DataTable.Col>
@@ -603,7 +600,22 @@ const BaugrundstueckList = () => {
         <DataTable.Col label="Status" disableSort>
           <StatusBadge />
         </DataTable.Col>
-      </DataTable>
+        </DataTable>
+      </div>
+    </div>
+  );
+};
+
+const BaugrundstueckList = () => {
+  return (
+    <List
+      resource="kleinanzeigen_grundstueck"
+      sort={{ field: "last_seen_at", order: "DESC" }}
+      perPage={25}
+      filterDefaultValues={{ status: "aktiv" }}
+      title="Baugrundstücke (kleinanzeigen.de)"
+    >
+      <BaugrundstueckListLayout />
     </List>
   );
 };
