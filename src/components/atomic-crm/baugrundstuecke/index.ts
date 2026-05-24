@@ -48,6 +48,8 @@ export type Baugrundstueck = {
   teilbar?: boolean | null;
   paragraph_34?: boolean | null;
   provision_satz_pct?: number | null;
+  baubarkeit_typ?: string | null;
+  bebaubare_flaeche_qm?: number | null;
   bebaubarkeit_kurz?: string | null;
   risiken?: string[] | null;
   ki_analyse_at?: string | null;

@@ -768,6 +768,18 @@ const ShowBody = () => {
                 <span className="text-muted-foreground">Erschließung</span>
                 <span>{r.erschliessung ?? "—"}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Baubarkeit</span>
+                <span>{r.baubarkeit_typ ?? "—"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Bebaubare Fläche</span>
+                <span>
+                  {r.bebaubare_flaeche_qm
+                    ? `${new Intl.NumberFormat("de-DE").format(Math.round(r.bebaubare_flaeche_qm))} m²`
+                    : "—"}
+                </span>
+              </div>
               <div className="flex justify-between col-span-2">
                 <span className="text-muted-foreground">§34 BauGB</span>
                 <span>

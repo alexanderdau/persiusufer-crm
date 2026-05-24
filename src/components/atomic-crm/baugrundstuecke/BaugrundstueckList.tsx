@@ -160,6 +160,11 @@ const TitelCell = () => {
             §34 Umgebung
           </Badge>
         )}
+        {r.baubarkeit_typ && (
+          <Badge variant="outline" className="text-[10px] px-1 py-0 border-slate-500 text-slate-700 bg-slate-50">
+            {r.baubarkeit_typ}
+          </Badge>
+        )}
       </div>
       {r.tags && r.tags.length > 0 && (
         <div className="flex gap-1 mt-1 flex-wrap">

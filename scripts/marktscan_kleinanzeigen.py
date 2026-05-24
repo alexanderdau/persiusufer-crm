@@ -301,6 +301,21 @@ RE_BPLAN_VORHANDEN = re.compile(
     r"§\s*30\s+BauGB",
     re.IGNORECASE,
 )
+RE_BAUBARKEIT = re.compile(
+    r"\b(Mehrfamilienhaus|MFH|Doppelhaush(?:ä|ae)lfte|Doppelhaus|DHH|"
+    r"Einfamilienhaus\s*(?:mit\s+)?Einliegerwohnung|EFH\s*[/+]\s*EW|EFH/EW|"
+    r"Einfamilienhaus|EFH)\b",
+    re.IGNORECASE,
+)
+RE_ORTSTEIL = re.compile(
+    r"(?:Ortsteil|OT\b|\bO\.\s*T\.|im\s+Ortsteil)\s+([A-ZÄÖÜ][A-Za-zäöüßÄÖÜ-]{2,30})",
+)
+RE_BAUFELD = re.compile(
+    r"(?:Baufeld|bebaubare\s+(?:Grund)?fl(?:ä|ae)che|Grundfl(?:ä|ae)che)\s*(?:\(?GR\)?\s*)?(?:von|=|:)?\s*"
+    r"(?:ca\.|circa|rd\.)?\s*(\d{2,5})\s*(?:m²|qm|m2)",
+    re.IGNORECASE,
+)
+
 RE_PROV_SATZ = re.compile(
     r"(?:Provision|Courtage|K(?:ä|ae)ufer(?:provision|courtage)|Maklerlohn|Maklerprovision)"
     r"[\s\S]{0,80}?(\d{1,2}[,.]\d{1,2})\s*%|"
@@ -736,6 +751,31 @@ def parse_baurecht(beschreibung: str | None) -> dict:
     # §34 BauGB — Bebauung muss sich in nähere Umgebung einfügen
     if RE_PARAGRAPH_34.search(b):
         out["paragraph_34"] = True
+    # Baubarkeit-Typ
+    m = RE_BAUBARKEIT.search(b)
+    if m:
+        token = m.group(1).lower()
+        if "mehrfamilien" in token or token == "mfh":
+            out["baubarkeit_typ"] = "MFH"
+        elif "doppelhaus" in token or token == "dhh":
+            out["baubarkeit_typ"] = "DHH"
+        elif "einliegerwohnung" in token or "ew" in token:
+            out["baubarkeit_typ"] = "EFH/EW"
+        elif "einfamilien" in token or token == "efh":
+            out["baubarkeit_typ"] = "EFH"
+    # Ortsteil
+    m = RE_ORTSTEIL.search(b)
+    if m:
+        ot = m.group(1).strip()
+        if ot.lower() not in ("der","die","das","ein","eine","am","im"):
+            out["ortsteil_ki"] = ot
+    # Bebaubare Fläche aus Beschreibung
+    m = RE_BAUFELD.search(b)
+    if m:
+        try:
+            out["bebaubare_flaeche_qm"] = float(m.group(1))
+        except ValueError:
+            pass
     # Provisionssatz aus Beschreibung
     m = RE_PROV_SATZ.search(b)
     if m:
@@ -773,6 +813,9 @@ Extrahiere genau diese Felder (alle optional, weglassen wenn nicht klar):
 - teilbar (bool)
 - paragraph_34 (bool): Bebauung nach §34 BauGB — Einfügungsgebot, kein qualifizierter B-Plan
 - provision_satz_pct (float, z.B. 3.57 oder 7.14): Maklerprovisionssatz in Prozent, falls in der Beschreibung genannt
+- baubarkeit_typ (string): "EFH" (Einfamilienhaus), "DHH" (Doppelhaushälfte), "EFH/EW" (EFH mit Einliegerwohnung), "MFH" (Mehrfamilienhaus), "gemischt" (mehrere Optionen)
+- bebaubare_flaeche_qm (float): bebaubare Grundfläche in m² (oft = Grundstücksfläche × GRZ; falls explizit in Beschreibung genannt, den genannten Wert nehmen)
+- ortsteil (string): genauer Ortsteil falls in Beschreibung erwähnt (z.B. "Finkenkrug" wenn 'OT Finkenkrug' oder 'Ortsteil Finkenkrug' im Text)
 - bebaubarkeit_kurz (string, max 200 Zeichen): ein Satz für den Investor
 - risiken (string[]): konkrete Risiken (Altlasten, Naturschutz, Erbpacht, Hochwasser, Denkmalschutz etc.)
 
@@ -881,7 +924,7 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "flaeche_qm": flaeche,
         "plz": plz,
         "ort": ort,
-        "ortsteil": ortsteil,
+        "ortsteil": ortsteil or baurecht.get("ortsteil_ki"),
         "locality_full": locality_full,
         "state_abbr": "BB",
         "grundstuecksart": detail.details.get("Grundstücksart"),
@@ -905,6 +948,8 @@ def to_db_row(item: ListItem, detail: DetailData) -> dict[str, Any]:
         "teilbar": baurecht.get("teilbar"),
         "paragraph_34": baurecht.get("paragraph_34"),
         "provision_satz_pct": baurecht.get("provision_satz_pct"),
+        "baubarkeit_typ": baurecht.get("baubarkeit_typ"),
+        "bebaubare_flaeche_qm": baurecht.get("bebaubare_flaeche_qm"),
         "bebaubarkeit_kurz": baurecht.get("bebaubarkeit_kurz"),
         "risiken": baurecht.get("risiken"),
         "ki_analyse_at": baurecht.get("ki_analyse_at"),
