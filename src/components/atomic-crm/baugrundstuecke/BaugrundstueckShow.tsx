@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { useRecordContext, useUpdate, useNotify } from "ra-core";
+import {
+  useRecordContext,
+  useUpdate,
+  useNotify,
+  usePrevNextController,
+} from "ra-core";
+import { Link } from "react-router";
 import { Show } from "@/components/admin/show";
 import {
   ChevronLeft,
@@ -54,6 +60,57 @@ const formatQm = (value?: number | null) =>
     : new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(
         Number(value),
       ) + " m²";
+
+
+const PrevNextNav = () => {
+  const { hasPrev, hasNext, prevPath, nextPath, index, total, isPending } =
+    usePrevNextController<Baugrundstueck>({
+      resource: "kleinanzeigen_grundstueck",
+      linkType: "show",
+    });
+  if (isPending && total == null) return null;
+  return (
+    <div className="flex items-center gap-1">
+      {typeof index === "number" && typeof total === "number" && (
+        <span className="text-xs text-muted-foreground tabular-nums mr-2">
+          {index + 1} / {total}
+        </span>
+      )}
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={!hasPrev}
+        asChild={hasPrev}
+        aria-label="Vorherige Anzeige"
+        title="Vorherige Anzeige (← in der aktuellen Liste)"
+      >
+        {hasPrev && prevPath ? (
+          <Link to={prevPath}>
+            <ChevronLeft className="size-4" />
+          </Link>
+        ) : (
+          <ChevronLeft className="size-4" />
+        )}
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        disabled={!hasNext}
+        asChild={hasNext}
+        aria-label="Nächste Anzeige"
+        title="Nächste Anzeige (→ in der aktuellen Liste)"
+      >
+        {hasNext && nextPath ? (
+          <Link to={nextPath}>
+            <ChevronRight className="size-4" />
+          </Link>
+        ) : (
+          <ChevronRight className="size-4" />
+        )}
+      </Button>
+    </div>
+  );
+};
 
 const BilderSlider = () => {
   const r = useRecordContext<Baugrundstueck>();
@@ -512,10 +569,13 @@ const ShowBody = () => {
                   </div>
                 )}
               </div>
-              <Badge>
-                {BAUG_STATUSES.find((s) => s.value === r.status)?.label ??
-                  r.status}
-              </Badge>
+              <div className="flex items-center gap-2 shrink-0">
+                <Badge>
+                  {BAUG_STATUSES.find((s) => s.value === r.status)?.label ??
+                    r.status}
+                </Badge>
+                <PrevNextNav />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
