@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
 import { Clock, FileText, Heart, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
 import { useFavoriten } from "./useFavoriten";
 import { states } from "../companies/states";
+import { getSupabaseClient } from "../providers/supabase/supabase";
 
 const formatEur = (value?: number | null) =>
   value == null
@@ -176,6 +178,77 @@ const ZvgAkteListLayout = () => {
   );
 };
 
+
+type CountMap = Record<string, number>;
+
+const applyFilters = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  filters: Record<string, unknown>,
+  excludeKeys: string[],
+) => {
+  for (const [key, value] of Object.entries(filters)) {
+    if (excludeKeys.includes(key)) continue;
+    const m = key.match(/^(.+?)@(\w+)$/);
+    if (m) {
+      query = query.filter(m[1], m[2], value);
+    } else if (value === null) {
+      query = query.is(key, null);
+    } else {
+      query = query.eq(key, value);
+    }
+  }
+  return query;
+};
+
+const useBundeslandCounts = (
+  filterValues: Record<string, unknown>,
+): { counts: CountMap; loading: boolean } => {
+  const filterSig = useMemo(
+    () =>
+      JSON.stringify(
+        Object.fromEntries(
+          Object.entries(filterValues).filter(
+            ([k]) => k !== "state_abbr",
+          ),
+        ),
+      ),
+    [filterValues],
+  );
+  const [counts, setCounts] = useState<CountMap>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const sb = getSupabaseClient();
+    const otherFilters = JSON.parse(filterSig) as Record<string, unknown>;
+    Promise.all(
+      states.map(async (s) => {
+        let q = sb
+          .from("zvg_akte")
+          .select("zid", { count: "exact", head: true })
+          .eq("state_abbr", s.id);
+        q = applyFilters(q, otherFilters, ["state_abbr"]);
+        const { count } = await q;
+        return [s.id, count ?? 0] as const;
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      setCounts(Object.fromEntries(entries));
+      setLoading(false);
+    }).catch(() => {
+      if (cancelled) return;
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [filterSig]);
+
+  return { counts, loading };
+};
+
 const ZvgAkteListFilter = () => {
   const isMobile = useIsMobile();
   const { favoriten } = useFavoriten();
@@ -189,6 +262,9 @@ const ZvgAkteListFilter = () => {
   const in30 = addDays(now, 30).toISOString();
   const in90 = addDays(now, 90).toISOString();
   const nowIso = now.toISOString();
+
+  const { filterValues } = useListContext();
+  const { counts: blCounts } = useBundeslandCounts(filterValues || {});
 
   return (
     <ResponsiveFilters
@@ -242,15 +318,28 @@ const ZvgAkteListFilter = () => {
       </FilterCategory>
 
       <FilterCategory label="Bundesland" icon={<MapPin />}>
-        {states.map((s) => (
-          <ToggleFilterButton
-            key={s.id}
-            className="w-auto md:w-full justify-between h-10 md:h-8"
-            label={s.name}
-            value={{ state_abbr: s.id }}
-            size={isMobile ? "lg" : undefined}
-          />
-        ))}
+        {[...states]
+          .sort((a, b) => (blCounts[b.id] ?? 0) - (blCounts[a.id] ?? 0))
+          .filter((s) => (blCounts[s.id] ?? 0) > 0 || filterValues?.state_abbr === s.id)
+          .map((s) => {
+            const n = blCounts[s.id] ?? 0;
+            return (
+              <ToggleFilterButton
+                key={s.id}
+                className="w-auto md:w-full justify-between h-10 md:h-8"
+                label={
+                  <span className="flex items-center justify-between w-full gap-2">
+                    <span>{s.name}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {n}
+                    </span>
+                  </span>
+                }
+                value={{ state_abbr: s.id }}
+                size={isMobile ? "lg" : undefined}
+              />
+            );
+          })}
       </FilterCategory>
     </ResponsiveFilters>
   );
