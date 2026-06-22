@@ -296,12 +296,17 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
 
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t bg-background shrink-0">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={sending}>Abbrechen</Button>
-            <Button type="button" onClick={sendNow} disabled={sending}>
-              {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              {sending ? "Wird versendet…" : "Senden"}
-            </Button>
+          <DialogFooter className="px-6 py-4 border-t bg-background shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs text-muted-foreground sm:flex-1">
+              Bei Fehler oder leerem „An": Entwurf landet in der Topbar-Liste <strong>„Statusanfragen"</strong> (nicht im Mailclient).
+            </span>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={sending}>Abbrechen</Button>
+              <Button type="button" onClick={sendNow} disabled={sending}>
+                {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                {sending ? "Wird versendet…" : "Senden"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
