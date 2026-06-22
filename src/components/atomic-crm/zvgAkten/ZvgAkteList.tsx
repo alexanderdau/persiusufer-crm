@@ -99,7 +99,65 @@ const ZvgAkteListLayout = () => {
             <DataTable.Col<ZvgAkte>
               source="objektart"
               label="Objektart"
-              render={(record) => record.objektart?.trim() ?? "—"}
+              cellClassName="max-w-[280px] sm:max-w-[360px] md:max-w-[480px]"
+              render={(record) => {
+                const txt = record.objektart?.trim() ?? "—";
+                return (
+                  <span
+                    className="block truncate"
+                    title={txt !== "—" ? txt : undefined}
+                  >
+                    {txt}
+                  </span>
+                );
+              }}
+            />
+            <DataTable.Col<ZvgAkte>
+              label=""
+              source="geringstes_gebot_eur"
+              headerClassName="w-12"
+              cellClassName="w-12 px-1"
+              disableSort
+              render={(record) => {
+                const q = record.geringstes_gebot_quelle;
+                if (q === "in_progress") {
+                  return (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-semibold px-1.5 py-0 h-5" title="Haiku-Analyse läuft">
+                      …
+                    </Badge>
+                  );
+                }
+                if (q === "failed") {
+                  return (
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 font-semibold px-1.5 py-0 h-5" title="Haiku-Job fehlgeschlagen">
+                      !
+                    </Badge>
+                  );
+                }
+                if (record.geringstes_gebot_eur != null) {
+                  const eur = Number(record.geringstes_gebot_eur);
+                  const k = eur >= 1000 ? Math.round(eur / 1000) + "k" : String(eur);
+                  const rang = record.geringstes_gebot_rang_betreibend;
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-800 border-amber-300 font-semibold px-1.5 py-0 h-5"
+                      title={`Geringstes Gebot: ${eur.toLocaleString("de-DE")} EUR${rang ? ` · Rang ${rang}` : ""}`}
+                    >
+                      {k}
+                    </Badge>
+                  );
+                }
+                // Quelle vorhanden, aber EUR=NULL (Haiku konnte nichts ableiten)
+                if (q && q !== "in_progress" && q !== "failed") {
+                  return (
+                    <Badge variant="outline" className="bg-zinc-50 text-zinc-600 border-zinc-300 font-semibold px-1.5 py-0 h-5" title="Geringstes Gebot analysiert, aber Dokumente liefern keinen eindeutigen Wert">
+                      ?
+                    </Badge>
+                  );
+                }
+                return null;
+              }}
             />
             <DataTable.Col<ZvgAkte>
               source="gpreis_eur"
@@ -263,6 +321,19 @@ const ZvgAkteListFilter = () => {
   const in90 = addDays(now, 90).toISOString();
   const nowIso = now.toISOString();
 
+  // Heute (00:00 bis 23:59)
+  const heuteStart = (() => {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+  const heuteEnd = (() => {
+    const d = new Date(now);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  })();
+  const heuteLabel = now.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+
   // Letzter Werktag: Mo → Fr (3 zurück), So → Fr (2), Sa → Fr (1), Di-Fr → gestern (1).
   // Feiertage werden in v1 ignoriert — falls relevant, Tag manuell überspringen.
   const letzterWerktag = (() => {
@@ -335,14 +406,20 @@ const ZvgAkteListFilter = () => {
       <FilterCategory label="Termin" icon={<Clock />}>
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
+          label={`Heute (${heuteLabel})`}
+          value={{ "termin@gte": heuteStart, "termin@lte": heuteEnd, "status@neq": "aufgehoben" }}
+          size={isMobile ? "lg" : undefined}
+        />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
           label={`Letzter Werktag (${letzterWerktagLabel})`}
-          value={{ "termin@gte": letzterWerktagStart, "termin@lte": letzterWerktagEnd }}
+          value={{ "termin@gte": letzterWerktagStart, "termin@lte": letzterWerktagEnd, "status@neq": "aufgehoben" }}
           size={isMobile ? "lg" : undefined}
         />
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="Diese Woche"
-          value={{ "termin@gte": wocheStart, "termin@lte": wocheEnd }}
+          value={{ "termin@gte": wocheStart, "termin@lte": wocheEnd, "status@neq": "aufgehoben" }}
           size={isMobile ? "lg" : undefined}
         />
         <ToggleFilterButton

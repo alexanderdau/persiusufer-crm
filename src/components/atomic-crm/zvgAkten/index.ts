@@ -31,6 +31,16 @@ export type ZvgAkte = {
   triage_note?: string | null;
   stop_reason?: string | null;
   bietreichweite_eur?: number | null;
+  geringstes_gebot_eur?: number | null;
+  geringstes_gebot_rang_betreibend?: number | null;
+  geringstes_gebot_quelle?: string | null;
+  geringstes_gebot_notiz?: string | null;
+  geringstes_gebot_warnung?: string | null;
+  bestehenbleibende_rechte_jsonb?: any;
+  geringstes_gebot_ermittelt_am?: string | null;
+  geringstes_gebot_modell?: string | null;
+  geringstes_gebot_job_started_at?: string | null;
+  geringstes_gebot_job_error?: string | null;
   rechtspfleger_contact_id?: Identifier | null;
   sachverstaendiger_contact_id?: Identifier | null;
   deal_id?: Identifier | null;

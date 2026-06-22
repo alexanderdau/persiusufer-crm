@@ -1,27 +1,15 @@
 import { useState } from "react";
-import { useNotify, useGetIdentity } from "ra-core";
-import { Mail, MailCheck } from "lucide-react";
+import { useNotify, useGetIdentity, useRefresh } from "ra-core";
+import { Mail, Loader2, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 import { type ZvgAkte } from "./index";
 
-type RechtspflegerData = {
-  first_name: string | null;
-  last_name: string | null;
-  gender: string | null;
-  title: string | null;
-  email_jsonb: any;
-};
-
-type AgData = {
-  name: string | null;
-  email: string | null;
-  postanschrift: string | null;
-  city: string | null;
-};
-
-// 10 Werktage später (nur Mo-Fr, Feiertage ignoriert)
 const plusTenWorkdays = (from: Date) => {
   const d = new Date(from);
   let added = 0;
@@ -33,178 +21,348 @@ const plusTenWorkdays = (from: Date) => {
   return d.toISOString().slice(0, 10);
 };
 
-const buildAnrede = (rp: RechtspflegerData | null): string => {
+type Rp = { first_name: string | null; last_name: string | null; gender: string | null; title: string | null; email_jsonb: any };
+
+const buildAnrede = (rp: Rp | null) => {
   if (!rp || !rp.last_name) return "Sehr geehrte Damen und Herren";
   const title = rp.title ? `${rp.title} ` : "";
   const g = (rp.gender ?? "").toLowerCase();
-  if (g === "männlich" || g === "male" || g === "m" || g === "mann")
-    return `Sehr geehrter Herr ${title}${rp.last_name}`;
-  if (g === "weiblich" || g === "female" || g === "f" || g === "frau")
-    return `Sehr geehrte Frau ${title}${rp.last_name}`;
+  if (["männlich", "male", "m", "mann"].includes(g)) return `Sehr geehrter Herr ${title}${rp.last_name}`;
+  if (["weiblich", "female", "f", "frau"].includes(g)) return `Sehr geehrte Frau ${title}${rp.last_name}`;
   return `Sehr geehrte/r ${title}${rp.last_name}`;
 };
 
-const buildBody = (akte: ZvgAkte, anrede: string, rpKnown: boolean): string => {
-  const optBlock = `[ ] (1) Versteigerungstermin steht noch aus.
-        Neuer Termin: ____________ , Saal ____ , Uhrzeit ____
-
-[ ] (2) Versteigerungstermin am ___________ hat stattgefunden;
-        Zuschlag wurde im Termin verkündet.
-
-[ ] (3) Versteigerungstermin am ___________ hat stattgefunden;
-        Verkündungstermin nach § 87 II ZVG bestimmt auf
-        ____________ , Saal ____ , Uhrzeit ____
-
-[ ] (4) Zuschlag wurde versagt (§§ 83 / 85 / 85a ZVG).
-        Folgetermin: ____________ (sofern bereits bestimmt)
-
-[ ] (5) Verfahren ist eingestellt / aufgehoben
-        (z. B. nach §§ 28, 30, 31 ZVG).
-
-[ ] (6) Verteilungstermin (nicht-öffentlich) ist bestimmt
-        auf ___________ .
-
-[ ] (7) Sonstiger Verfahrensstand:
-        _________________________________________________________`;
-
+const buildBody = (az: string, anrede: string, rpKnown: boolean) => {
+  const opt =
+    "[ ] (1) Versteigerungstermin steht noch aus.\n" +
+    "        Neuer Termin: ____________ , Saal ____ , Uhrzeit ____\n\n" +
+    "[ ] (2) Versteigerungstermin am ___________ hat stattgefunden;\n" +
+    "        Zuschlag wurde im Termin verkündet.\n\n" +
+    "[ ] (3) Versteigerungstermin am ___________ hat stattgefunden;\n" +
+    "        Verkündungstermin nach § 87 II ZVG bestimmt auf\n" +
+    "        ____________ , Saal ____ , Uhrzeit ____\n\n" +
+    "[ ] (4) Zuschlag wurde versagt (§§ 83 / 85 / 85a ZVG).\n" +
+    "        Folgetermin: ____________ (sofern bereits bestimmt)\n\n" +
+    "[ ] (5) Verfahren ist eingestellt / aufgehoben\n" +
+    "        (z. B. nach §§ 28, 30, 31 ZVG).\n\n" +
+    "[ ] (6) Verteilungstermin (nicht-öffentlich) ist bestimmt\n" +
+    "        auf ___________ .\n\n" +
+    "[ ] (7) Sonstiger Verfahrensstand:\n" +
+    "        _________________________________________________________";
   const einleitung = rpKnown
-    ? `da Sie das o. g. Zwangsversteigerungsverfahren als Rechtspfleger:in leiten, wende ich mich mit der Bitte um eine kurze Statusauskunft direkt an Sie.`
-    : `ich bitte zu dem o. g. Zwangsversteigerungsverfahren um eine kurze Statusauskunft.`;
-
+    ? "da Sie das o. g. Zwangsversteigerungsverfahren als Rechtspfleger:in leiten, wende ich mich mit der Bitte um eine kurze Statusauskunft direkt an Sie."
+    : "ich bitte zu dem o. g. Zwangsversteigerungsverfahren um eine kurze Statusauskunft.";
   return `${anrede},
 
 ${einleitung} Den nächsten öffentlichen Termin nach §§ 87, 169 GVG machen Sie ohnehin durch Anheftung an die Gerichtstafel bekannt — mir würde die nachfolgende Auswahl Ihrerseits voll genügen. Eine formfreie Mailantwort mit angekreuzter Option ist ausreichend.
 
-Aktenzeichen: ${akte.az ?? ""}
+Aktenzeichen: ${az}
 
 Bitte zutreffende Option auswählen:
 
-${optBlock}
+${opt}
 
 Vielen Dank für Ihre kurze Rückmeldung.
 
-Mit freundlichen Grüßen`;
+Mit freundlichen Grüßen
+Persiusufer Verwaltungs GmbH
+anfrage@persiusufer.de`;
 };
 
 export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
   const notify = useNotify();
+  const refresh = useRefresh();
   const { identity } = useGetIdentity();
-  const [loading, setLoading] = useState(false);
 
-  const onClick = async () => {
+  const [open, setOpen] = useState(false);
+  const [preparing, setPreparing] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const [to, setTo] = useState("");
+  const [cc, setCc] = useState("");
+  const [subject, setSubject] = useState("");
+  const [bodyText, setBodyText] = useState("");
+  const [agInfo, setAgInfo] = useState<{ name: string | null; hasEmail: boolean; fax: string | null; emailHinweis: string | null } | null>(null);
+  const [rateInfo, setRateInfo] = useState<{ ok: boolean; sperreBis?: string; letzteAm?: string; letzteZid?: string } | null>(null);
+
+  const isAufgehoben = akte.status === "aufgehoben";
+  const isDisabled = preparing || sending || !akte.ag_company_id || isAufgehoben;
+
+  const openModal = async () => {
     if (!akte.ag_company_id) {
       notify("Keine AG-Verknüpfung in der Akte — Anfrage nicht möglich.", { type: "warning" });
       return;
     }
-    setLoading(true);
+    if (isAufgehoben) {
+      notify("Versteigerungstermin ist aufgehoben — Statusanfrage ergibt keinen Sinn.", { type: "warning" });
+      return;
+    }
+    setPreparing(true);
     try {
       const sb = getSupabaseClient();
 
-      // Rate-Limit-Check
-      const { data: rateRows, error: rateErr } = await sb.rpc("zvg_anfrage_kann_senden", {
-        p_ag_company_id: akte.ag_company_id,
-      });
-      if (rateErr) throw rateErr;
-      const rate = Array.isArray(rateRows) ? rateRows[0] : rateRows;
-      if (rate && rate.kann_senden === false) {
-        const sperre = rate.sperre_bis ? new Date(rate.sperre_bis).toLocaleDateString("de-DE") : "?";
-        const ok = window.confirm(
-          `Rate-Limit: An dieses AG ging bereits in den letzten 7 Tagen eine Anfrage (zuletzt am ${new Date(rate.letzte_anfrage_am).toLocaleDateString("de-DE")} zur Akte ${rate.letzte_anfrage_zid}).\n\nSperre läuft bis ${sperre}.\n\nTrotzdem senden (Override)?`,
-        );
-        if (!ok) {
-          setLoading(false);
-          return;
+      const [agRes, rateRes] = await Promise.all([
+        sb.from("companies").select("id, name, email, email_hinweis, telefax").eq("id", akte.ag_company_id).single(),
+        sb.rpc("zvg_anfrage_kann_senden", { p_ag_company_id: akte.ag_company_id }),
+      ]);
+      if (agRes.error) throw agRes.error;
+      const ag = agRes.data;
+      const trimmedEmail = (ag?.email ?? "").trim();
+      const hasEmail = trimmedEmail.length > 0 && /@/.test(trimmedEmail);
+
+      let rp: Rp | null = null;
+      let rpCc = "";
+      if (akte.rechtspfleger_contact_id) {
+        const { data } = await sb.from("contacts").select("first_name, last_name, gender, title, email_jsonb").eq("id", akte.rechtspfleger_contact_id).single();
+        if (data) {
+          rp = data as Rp;
+          try {
+            const arr = Array.isArray(rp.email_jsonb) ? rp.email_jsonb : [];
+            const f = arr.find((e: any) => e?.email) ?? arr[0];
+            rpCc = f?.email ?? "";
+          } catch { /* ignore */ }
         }
       }
-
-      // Rechtspfleger-Daten ziehen, falls vorhanden
-      let rp: RechtspflegerData | null = null;
-      if (akte.rechtspfleger_contact_id) {
-        const { data, error } = await sb
-          .from("contacts")
-          .select("first_name,last_name,gender,title,email_jsonb")
-          .eq("id", akte.rechtspfleger_contact_id)
-          .single();
-        if (!error && data) rp = data as RechtspflegerData;
-      }
-
-      // AG-Daten ziehen für E-Mail-Adresse
-      const { data: agRow, error: agErr } = await sb
-        .from("companies")
-        .select("name,email,postanschrift,city")
-        .eq("id", akte.ag_company_id)
-        .single();
-      if (agErr) throw agErr;
-      const ag = agRow as AgData;
 
       const anrede = buildAnrede(rp);
-      const body = buildBody(akte, anrede, !!rp);
-      const subject = `Auskunftsersuchen Zwangsversteigerungsverfahren · Az. ${akte.az}`;
-      const toEmail = ag.email ?? "";
+      const defaultBody = buildBody(akte.az ?? "", anrede, !!rp);
+      const defaultSubject = `Auskunftsersuchen Zwangsversteigerungsverfahren · Az. ${akte.az ?? ""}`;
 
-      // Rechtspfleger-Mail als CC, falls bekannt
-      const rpEmail = (() => {
-        if (!rp || !rp.email_jsonb) return null;
-        try {
-          const arr = Array.isArray(rp.email_jsonb) ? rp.email_jsonb : [];
-          const first = arr.find((e: any) => e?.email) ?? arr[0];
-          return first?.email ?? null;
-        } catch {
-          return null;
-        }
-      })();
+      setTo(trimmedEmail);
+      setCc(rpCc);
+      setSubject(defaultSubject);
+      setBodyText(defaultBody);
+      setAgInfo({ name: ag?.name ?? null, hasEmail, fax: ag?.telefax ?? null, emailHinweis: ag?.email_hinweis ?? null });
 
-      // INSERT in zvg_anfrage (status=gesendet, override falls Rate-Limit übersteuert)
-      const overrideRateLimit = rate && rate.kann_senden === false;
-      const reAnfrageFaellig = plusTenWorkdays(new Date());
-      const salesId = (identity?.id as number) ?? null;
+      const rate = Array.isArray(rateRes.data) ? rateRes.data[0] : rateRes.data;
+      if (rate && rate.kann_senden === false) {
+        setRateInfo({
+          ok: false,
+          sperreBis: rate.sperre_bis ? new Date(rate.sperre_bis).toLocaleDateString("de-DE") : "?",
+          letzteAm: rate.letzte_anfrage_am ? new Date(rate.letzte_anfrage_am).toLocaleDateString("de-DE") : "?",
+          letzteZid: rate.letzte_anfrage_zid ?? undefined,
+        });
+      } else {
+        setRateInfo({ ok: true });
+      }
 
-      const { error: insErr } = await sb.from("zvg_anfrage").insert({
-        zid: akte.zid,
-        ag_company_id: akte.ag_company_id,
-        rechtspfleger_contact_id: akte.rechtspfleger_contact_id ?? null,
-        anrede,
-        gesendet_an_email: toEmail || null,
-        gesendet_per: "email",
-        gesendet_von_sales_id: salesId,
-        anlass: "nach_termin",
-        betreff: subject,
-        body,
-        gesendet_am: new Date().toISOString(),
-        status: "gesendet",
-        override_rate_limit: !!overrideRateLimit,
-        re_anfrage_faellig_am: reAnfrageFaellig,
-      });
-      if (insErr) throw insErr;
-
-      // Mailto-Link öffnen
-      const ccParam = rpEmail ? `&cc=${encodeURIComponent(rpEmail)}` : "";
-      const mailto = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}${ccParam}&body=${encodeURIComponent(body)}`;
-      window.location.href = mailto;
-
-      notify(
-        `Anfrage erstellt — Mail-Client geöffnet. Re-Anfrage automatisch fällig am ${new Date(reAnfrageFaellig).toLocaleDateString("de-DE")}.`,
-        { type: "success" },
-      );
+      setOpen(true);
     } catch (e: any) {
-      notify(`Fehler beim Erstellen der Anfrage: ${e?.message ?? e}`, { type: "error" });
+      notify(`Fehler beim Vorbereiten: ${e?.message ?? e}`, { type: "error" });
     } finally {
-      setLoading(false);
+      setPreparing(false);
     }
   };
 
+  const pollAnfrageStatus = (anfrageId: number, startedAt: string) => {
+    const sb = getSupabaseClient();
+    const startedMs = Date.parse(startedAt);
+    const deadline = Date.now() + 60_000;
+    const interval = window.setInterval(async () => {
+      if (Date.now() > deadline) {
+        window.clearInterval(interval);
+        setSending(false);
+        notify(`SMTP-Job läuft länger als 60 Sek — Status erscheint später unter „Statusanfragen". Entwurf #${anfrageId} bleibt bestehen.`, { type: "info" });
+        setOpen(false);
+        refresh();
+        return;
+      }
+      const { data } = await sb.from("zvg_anfrage")
+        .select("status, gesendet_am, job_error, sent_copy_info, gesendet_an_email")
+        .eq("id", anfrageId).single();
+      if (!data) return;
+      const sentAt = data.gesendet_am ? Date.parse(data.gesendet_am) : 0;
+      const done = data.status === "gesendet" && sentAt >= startedMs;
+      const failed = data.job_error != null;
+      if (done) {
+        window.clearInterval(interval);
+        setSending(false);
+        const sci = data.sent_copy_info;
+        const sentMsg = sci && sci.ok ? ` (Kopie im Ordner „${sci.folder}")` : sci && sci.attempted ? " (Sent-Kopie fehlgeschlagen)" : "";
+        notify(`✓ Statusanfrage an ${data.gesendet_an_email} versendet${sentMsg}.`, { type: "success" });
+        setOpen(false);
+        refresh();
+      } else if (failed) {
+        window.clearInterval(interval);
+        setSending(false);
+        notify(`SMTP-Versand fehlgeschlagen: ${data.job_error}. Entwurf #${anfrageId} bleibt unter „Statusanfragen".`, { type: "error" });
+        setOpen(false);
+        refresh();
+      }
+    }, 2000);
+  };
+
+  const sendNow = async () => {
+    if (!akte.ag_company_id) return;
+    setSending(true);
+    try {
+      const sb = getSupabaseClient();
+      const hasEmail = (to ?? "").trim().length > 0 && /@/.test(to);
+      const overrideRate = rateInfo && !rateInfo.ok;
+
+      const salesId = (identity?.id as number) ?? null;
+      const { data: created, error: insErr } = await sb
+        .from("zvg_anfrage")
+        .insert({
+          zid: akte.zid,
+          ag_company_id: akte.ag_company_id,
+          rechtspfleger_contact_id: akte.rechtspfleger_contact_id ?? null,
+          anlass: "nach_termin",
+          gesendet_per: hasEmail ? "email" : "brief",
+          gesendet_von_sales_id: salesId,
+          status: "entwurf",
+          override_rate_limit: overrideRate ?? false,
+          re_anfrage_faellig_am: plusTenWorkdays(new Date()),
+          betreff: subject || null,
+          body: bodyText || null,
+          gesendet_an_email: hasEmail ? to.trim() : null,
+        })
+        .select("id")
+        .single();
+      if (insErr) throw insErr;
+
+      if (!hasEmail) {
+        notify(`Entwurf #${created.id} angelegt — keine E-Mail eingetragen, bitte per Fax oder Post versenden.`, { type: "info" });
+        setOpen(false);
+        refresh();
+        setSending(false);
+        return;
+      }
+
+      const { data: sendData, error: sendErr } = await sb.functions.invoke("zvg-anfrage-send", {
+        body: {
+          anfrage_id: created.id,
+          to_override: to.trim(),
+          cc_override: cc.trim() || null,
+          subject_override: subject,
+          body_override: bodyText,
+        },
+      });
+      // Function startet jetzt Background-Job und returnt 202 mit job_started
+      if (sendErr || sendData?.error) {
+        // Browser-Response kaputt? Job kann trotzdem im Hintergrund laufen — DB checken
+        const check = await sb.from("zvg_anfrage").select("job_started_at, status").eq("id", created.id).single();
+        if (check.data?.job_started_at && check.data.status === "entwurf") {
+          notify(`SMTP-Versand läuft im Hintergrund (~5–15 Sek) — wird gepollt …`, { type: "info" });
+          pollAnfrageStatus(created.id, check.data.job_started_at);
+          return;
+        }
+        const msg = sendErr?.message ?? sendData?.error ?? "unbekannt";
+        notify(`Function-Fehler: ${msg}. Entwurf #${created.id} bleibt unter „Statusanfragen".`, { type: "error" });
+        setOpen(false);
+        refresh();
+        setSending(false);
+        return;
+      }
+
+      if (sendData?.job_started && sendData?.started_at) {
+        notify(`SMTP-Versand läuft im Hintergrund (~5–15 Sek) …`, { type: "info" });
+        pollAnfrageStatus(created.id, sendData.started_at);
+        return;
+      }
+
+      // Fallback (alter synchroner Pfad)
+      notify(`✓ Statusanfrage versendet.`, { type: "success" });
+      setOpen(false);
+      refresh();
+      setSending(false);
+    } catch (e: any) {
+      notify(`Fehler: ${e?.message ?? e}`, { type: "error" });
+      setSending(false);
+    }
+  };
+
+  const tooltip = isAufgehoben
+    ? "Aufgehobener Termin — Statusanfrage nicht sinnvoll"
+    : !akte.ag_company_id
+      ? "Keine AG-Verknüpfung — Anfrage nicht möglich"
+      : "Statusanfrage per E-Mail — Vorschau & Bearbeiten vor dem Versand";
+
+  if (isAufgehoben) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+        <Mail className="size-3.5 opacity-60" />
+        Termin aufgehoben — Versand nicht möglich
+      </div>
+    );
+  }
+
   return (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      onClick={onClick}
-      disabled={loading || !akte.ag_company_id}
-      title="Statusanfrage an Rechtspfleger:in / Geschäftsstelle senden"
-    >
-      {loading ? <MailCheck className="size-4" /> : <Mail className="size-4" />}
-      Statusanfrage senden
-    </Button>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={openModal}
+        disabled={isDisabled}
+        title={tooltip}
+        className="disabled:opacity-50 disabled:bg-muted disabled:cursor-not-allowed"
+      >
+        {preparing ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+        {preparing ? "Lädt…" : "Statusanfrage senden"}
+      </Button>
+
+      <Dialog open={open} onOpenChange={(o) => { if (!sending) setOpen(o); }}>
+        <DialogContent className="max-w-3xl flex flex-col max-h-[90vh] p-0">
+          <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b">
+            <DialogTitle>Statusanfrage senden — {agInfo?.name ?? "Amtsgericht"}</DialogTitle>
+            <DialogDescription>
+              Aktenzeichen <strong>{akte.az}</strong>. Felder vor dem Versand prüfen oder anpassen.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+
+          {rateInfo && !rateInfo.ok && (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Rate-Limit: An dieses AG ging bereits in den letzten 7 Tagen eine Anfrage (zuletzt am {rateInfo.letzteAm} zur Akte {rateInfo.letzteZid ?? "?"}). Sperre läuft bis {rateInfo.sperreBis}. Versand erfolgt als Override.
+            </div>
+          )}
+          {agInfo && !agInfo.hasEmail && (
+            <div className="rounded-md border border-orange-300 bg-orange-50 px-3 py-2 text-sm text-orange-900">
+              Keine E-Mail für {agInfo.name ?? "AG"} hinterlegt.
+              {agInfo.fax ? <> Fax: <strong>{agInfo.fax}</strong>.</> : null}
+              {agInfo.emailHinweis ? <> {agInfo.emailHinweis}</> : null}
+              <br />Wenn To leer bleibt, wird nur ein Entwurf angelegt (für Fax/Post).
+            </div>
+          )}
+
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <Label htmlFor="anfrage-to">An (To)</Label>
+              <Input id="anfrage-to" value={to} onChange={(e) => setTo(e.target.value)} placeholder="z. B. poststelle@ag-stadt.brandenburg.de" />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="anfrage-cc">CC (Rechtspfleger:in)</Label>
+              <Input id="anfrage-cc" value={cc} onChange={(e) => setCc(e.target.value)} placeholder="optional" />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="anfrage-subject">Betreff</Label>
+              <Input id="anfrage-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="anfrage-body">Text</Label>
+              <Textarea id="anfrage-body" value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={12} className="font-mono text-xs" />
+            </div>
+          </div>
+
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-background shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-xs text-muted-foreground sm:flex-1">
+              Bei Fehler oder leerem „An": Entwurf landet in der Topbar-Liste <strong>„Statusanfragen"</strong> (nicht im Mailclient).
+            </span>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={sending}>Abbrechen</Button>
+              <Button type="button" onClick={sendNow} disabled={sending}>
+                {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                {sending ? "Wird versendet…" : "Senden"}
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
