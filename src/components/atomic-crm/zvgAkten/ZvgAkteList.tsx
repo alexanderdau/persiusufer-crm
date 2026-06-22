@@ -336,13 +336,13 @@ const ZvgAkteListFilter = () => {
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label={`Letzter Werktag (${letzterWerktagLabel})`}
-          value={{ "termin@gte": letzterWerktagStart, "termin@lte": letzterWerktagEnd }}
+          value={{ "termin@gte": letzterWerktagStart, "termin@lte": letzterWerktagEnd, "status@neq": "aufgehoben" }}
           size={isMobile ? "lg" : undefined}
         />
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="Diese Woche"
-          value={{ "termin@gte": wocheStart, "termin@lte": wocheEnd }}
+          value={{ "termin@gte": wocheStart, "termin@lte": wocheEnd, "status@neq": "aufgehoben" }}
           size={isMobile ? "lg" : undefined}
         />
         <ToggleFilterButton
