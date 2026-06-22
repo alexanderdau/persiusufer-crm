@@ -263,6 +263,19 @@ const ZvgAkteListFilter = () => {
   const in90 = addDays(now, 90).toISOString();
   const nowIso = now.toISOString();
 
+  // Heute (00:00 bis 23:59)
+  const heuteStart = (() => {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+  const heuteEnd = (() => {
+    const d = new Date(now);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  })();
+  const heuteLabel = now.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+
   // Letzter Werktag: Mo → Fr (3 zurück), So → Fr (2), Sa → Fr (1), Di-Fr → gestern (1).
   // Feiertage werden in v1 ignoriert — falls relevant, Tag manuell überspringen.
   const letzterWerktag = (() => {
@@ -333,6 +346,12 @@ const ZvgAkteListFilter = () => {
       </FilterCategory>
 
       <FilterCategory label="Termin" icon={<Clock />}>
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label={`Heute (${heuteLabel})`}
+          value={{ "termin@gte": heuteStart, "termin@lte": heuteEnd, "status@neq": "aufgehoben" }}
+          size={isMobile ? "lg" : undefined}
+        />
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label={`Letzter Werktag (${letzterWerktagLabel})`}
