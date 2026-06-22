@@ -226,6 +226,15 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
       ? "Keine AG-Verknüpfung — Anfrage nicht möglich"
       : "Statusanfrage per E-Mail — Vorschau & Bearbeiten vor dem Versand";
 
+  if (isAufgehoben) {
+    return (
+      <div className="inline-flex items-center gap-2 rounded-md border border-dashed border-muted-foreground/40 bg-muted/40 px-3 py-1.5 text-xs text-muted-foreground">
+        <Mail className="size-3.5 opacity-60" />
+        Termin aufgehoben — Versand nicht möglich
+      </div>
+    );
+  }
+
   return (
     <>
       <Button
@@ -235,19 +244,22 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
         onClick={openModal}
         disabled={isDisabled}
         title={tooltip}
+        className="disabled:opacity-50 disabled:bg-muted disabled:cursor-not-allowed"
       >
         {preparing ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
         {preparing ? "Lädt…" : "Statusanfrage senden"}
       </Button>
 
       <Dialog open={open} onOpenChange={(o) => { if (!sending) setOpen(o); }}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl flex flex-col max-h-[90vh] p-0">
+          <DialogHeader className="px-6 pt-6 pb-3 shrink-0 border-b">
             <DialogTitle>Statusanfrage senden — {agInfo?.name ?? "Amtsgericht"}</DialogTitle>
             <DialogDescription>
               Aktenzeichen <strong>{akte.az}</strong>. Felder vor dem Versand prüfen oder anpassen.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
 
           {rateInfo && !rateInfo.ok && (
             <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
@@ -278,11 +290,13 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
             </div>
             <div className="grid gap-1">
               <Label htmlFor="anfrage-body">Text</Label>
-              <Textarea id="anfrage-body" value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={18} className="font-mono text-xs" />
+              <Textarea id="anfrage-body" value={bodyText} onChange={(e) => setBodyText(e.target.value)} rows={12} className="font-mono text-xs" />
             </div>
           </div>
 
-          <DialogFooter>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-background shrink-0">
             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={sending}>Abbrechen</Button>
             <Button type="button" onClick={sendNow} disabled={sending}>
               {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
