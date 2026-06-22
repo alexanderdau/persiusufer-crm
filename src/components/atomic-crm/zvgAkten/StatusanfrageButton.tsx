@@ -24,9 +24,16 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
   const { identity } = useGetIdentity();
   const [loading, setLoading] = useState(false);
 
+  const isAufgehoben = akte.status === "aufgehoben";
+  const isDisabled = loading || !akte.ag_company_id || isAufgehoben;
+
   const onClick = async () => {
     if (!akte.ag_company_id) {
       notify("Keine AG-Verknüpfung in der Akte — Anfrage nicht möglich.", { type: "warning" });
+      return;
+    }
+    if (isAufgehoben) {
+      notify("Versteigerungstermin ist aufgehoben — Statusanfrage ergibt keinen Sinn.", { type: "warning" });
       return;
     }
     setLoading(true);
@@ -136,14 +143,20 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
     }
   };
 
+  const tooltip = isAufgehoben
+    ? "Aufgehobener Termin — Statusanfrage nicht sinnvoll"
+    : !akte.ag_company_id
+      ? "Keine AG-Verknüpfung — Anfrage nicht möglich"
+      : "Statusanfrage per E-Mail (Fallback: Entwurf, wenn keine E-Mail vorhanden)";
+
   return (
     <Button
       type="button"
       variant="outline"
       size="sm"
       onClick={onClick}
-      disabled={loading || !akte.ag_company_id}
-      title="Statusanfrage per E-Mail an AG / Rechtspfleger:in senden (Fallback: Entwurf, wenn keine E-Mail vorhanden)"
+      disabled={isDisabled}
+      title={tooltip}
     >
       {loading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
       {loading ? "Wird versendet…" : "Statusanfrage senden"}
