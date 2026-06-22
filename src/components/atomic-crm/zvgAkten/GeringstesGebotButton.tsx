@@ -20,23 +20,47 @@ export const GeringstesGebotButton = ({ akte }: { akte: ZvgAkte }) => {
       if (!ok) return;
     }
     setLoading(true);
+    const startedAt = akte.geringstes_gebot_ermittelt_am ?? null;
     try {
       const sb = getSupabaseClient();
       const { data, error } = await sb.functions.invoke("extract-geringstes-gebot", {
         body: { zid: akte.zid },
       });
-      if (error) {
-        notify(`Fehler: ${error.message}`, { type: "error" });
+
+      // Nach Function-Call: DB nachprüfen — die Function kann ~20s laufen
+      // und der Browser-Request kann inzwischen in ein Timeout gefallen sein,
+      // während die Function serverseitig erfolgreich durchläuft.
+      const recheck = await sb.from("zvg_akte")
+        .select("geringstes_gebot_eur, geringstes_gebot_rang_betreibend, geringstes_gebot_quelle, geringstes_gebot_warnung, geringstes_gebot_ermittelt_am, geringstes_gebot_notiz")
+        .eq("zid", akte.zid).single();
+      const updated = recheck.data && recheck.data.geringstes_gebot_ermittelt_am && recheck.data.geringstes_gebot_ermittelt_am !== startedAt;
+
+      if ((error || data?.error) && !updated) {
+        const msg = error?.message ?? data?.error ?? "unbekannt";
+        notify(`Function-Fehler: ${msg}. Die Anfrage erreicht den Server nicht oder bricht ab.`, { type: "error" });
         return;
       }
-      if (data?.error) {
-        notify(`Function-Fehler: ${data.error}${data.hint ? " — " + data.hint : ""}`, { type: "error" });
-        return;
+
+      const eurDb = recheck.data?.geringstes_gebot_eur;
+      const rangDb = recheck.data?.geringstes_gebot_rang_betreibend;
+      const warnDb = recheck.data?.geringstes_gebot_warnung;
+      const eurOut = data?.geringstes_gebot_eur_geschaetzt ?? eurDb;
+      const rangOut = data?.rang_betreibend ?? rangDb;
+      const warnOut = data?.warnung ?? warnDb;
+      const eurFmt = eurOut != null ? Number(eurOut).toLocaleString("de-DE") + " EUR" : "—";
+      const rangFmt = rangOut != null ? `Rang ${rangOut}` : "Rang unklar";
+
+      if (eurOut == null && rangOut == null) {
+        notify(
+          `Haiku-Analyse abgeschlossen, aber das Gutachten enthält keine eindeutige Forderungs-Rangfolge. Details: ${warnOut ?? "Begründung in der Akte"}`,
+          { type: "warning" },
+        );
+      } else {
+        notify(
+          `✓ Ermittelt: ${rangFmt}, geringstes Gebot ${eurFmt}${warnOut ? " · ⚠ " + warnOut : ""}`,
+          { type: "success" },
+        );
       }
-      notify(
-        `✓ Ermittelt: Rang ${data?.rang_betreibend ?? "?"}, geringstes Gebot ${data?.geringstes_gebot_eur_geschaetzt != null ? data.geringstes_gebot_eur_geschaetzt + " EUR" : "—"}${data?.warnung ? " · ⚠ " + data.warnung : ""}`,
-        { type: "success" },
-      );
       refresh();
     } catch (e: any) {
       notify(`Fehler: ${e?.message ?? e}`, { type: "error" });
