@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNotify, useGetIdentity, useRefresh } from "ra-core";
-import { Mail, MailCheck, Loader2 } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getSupabaseClient } from "../providers/supabase/supabase";
@@ -33,6 +33,17 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
     try {
       const sb = getSupabaseClient();
 
+      // 0) AG-Kontaktdaten vorab prüfen (E-Mail + Fax-Fallback-Info)
+      const { data: ag, error: agErr } = await sb
+        .from("companies")
+        .select("id, name, email, email_hinweis, email_quelle, telefax, lieferanschrift")
+        .eq("id", akte.ag_company_id)
+        .single();
+      if (agErr) throw agErr;
+
+      const trimmedEmail = (ag?.email ?? "").trim();
+      const hasEmail = trimmedEmail.length > 0 && /@/.test(trimmedEmail);
+
       // Rate-Limit-Check
       const { data: rateRows, error: rateErr } = await sb.rpc("zvg_anfrage_kann_senden", {
         p_ag_company_id: akte.ag_company_id,
@@ -53,7 +64,17 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
         overrideRateLimit = true;
       }
 
-      // 1) Anfrage-Datensatz als Entwurf anlegen
+      // Wenn keine E-Mail vorhanden: Bestätigung einholen
+      if (!hasEmail) {
+        const fax = ag?.telefax ? `\n\nFax: ${ag.telefax}` : "";
+        const hint = ag?.email_hinweis ? `\n\nHinweis: ${ag.email_hinweis}` : "";
+        const ok = window.confirm(
+          `${ag?.name ?? "Amtsgericht"} hat keine E-Mail-Adresse hinterlegt — SMTP-Versand nicht möglich.${hint}${fax}\n\nAnfrage als Entwurf speichern (zum späteren Versand per Fax/Post)?`,
+        );
+        if (!ok) { setLoading(false); return; }
+      }
+
+      // 1) Anfrage-Datensatz anlegen (immer als Entwurf — Edge Function setzt auf "gesendet" bei Erfolg)
       const salesId = (identity?.id as number) ?? null;
       const { data: created, error: insErr } = await sb
         .from("zvg_anfrage")
@@ -62,7 +83,7 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
           ag_company_id: akte.ag_company_id,
           rechtspfleger_contact_id: akte.rechtspfleger_contact_id ?? null,
           anlass: "nach_termin",
-          gesendet_per: "email",
+          gesendet_per: hasEmail ? "email" : "brief",
           gesendet_von_sales_id: salesId,
           status: "entwurf",
           override_rate_limit: overrideRateLimit,
@@ -72,22 +93,39 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
         .single();
       if (insErr) throw insErr;
 
+      // Wenn keine E-Mail: kein SMTP-Aufruf, Entwurf bleibt zum manuellen Versand
+      if (!hasEmail) {
+        notify(
+          `Entwurf #${created.id} angelegt — ${ag?.name ?? "AG"} hat keine E-Mail, bitte per Fax oder Post versenden.`,
+          { type: "info" },
+        );
+        refresh();
+        return;
+      }
+
       // 2) Edge Function aufrufen für tatsächlichen Versand
       const { data: sendData, error: sendErr } = await sb.functions.invoke("zvg-anfrage-send", {
         body: { anfrage_id: created.id },
       });
       if (sendErr) {
-        // Versand schlug fehl — Entwurf bleibt bestehen, Status auf 'entwurf'
-        notify(`SMTP-Versand fehlgeschlagen: ${sendErr.message}. Anfrage als Entwurf gespeichert.`, { type: "error" });
+        notify(
+          `SMTP-Versand fehlgeschlagen: ${sendErr.message}. Anfrage als Entwurf gespeichert (#${created.id}) — Du kannst sie später erneut versenden.`,
+          { type: "error" },
+        );
+        refresh();
         return;
       }
       if (sendData?.error) {
-        notify(`Versand-Fehler: ${sendData.error}${sendData.details ? " — " + sendData.details : ""}`, { type: "error" });
+        notify(
+          `Versand-Fehler: ${sendData.error}${sendData.details ? " — " + sendData.details : ""} — Entwurf #${created.id} bleibt bestehen.`,
+          { type: "error" },
+        );
+        refresh();
         return;
       }
 
       notify(
-        `✓ Statusanfrage an ${sendData?.to ?? "AG"} versendet${sendData?.cc ? " (CC " + sendData.cc + ")" : ""}.`,
+        `✓ Statusanfrage an ${sendData?.to ?? trimmedEmail} versendet${sendData?.cc ? " (CC " + sendData.cc + ")" : ""}.`,
         { type: "success" },
       );
       refresh();
@@ -105,7 +143,7 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
       size="sm"
       onClick={onClick}
       disabled={loading || !akte.ag_company_id}
-      title="Statusanfrage per E-Mail an AG / Rechtspfleger:in senden"
+      title="Statusanfrage per E-Mail an AG / Rechtspfleger:in senden (Fallback: Entwurf, wenn keine E-Mail vorhanden)"
     >
       {loading ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
       {loading ? "Wird versendet…" : "Statusanfrage senden"}
