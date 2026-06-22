@@ -31,6 +31,7 @@ import { useFavoriten } from "./useFavoriten";
 
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
 import { StatusanfrageButton } from "./StatusanfrageButton";
+import { GeringstesGebotButton } from "./GeringstesGebotButton";
 
 const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL ?? "";
 const BILDER_BUCKET = "zvg-bilder";
@@ -601,6 +602,28 @@ const ZvgAkteShowContent = () => {
             <Row label="Bietreichweite">
               {formatEur(record.bietreichweite_eur)}
             </Row>
+            <Row label="Geringstes Gebot">
+              {record.geringstes_gebot_eur != null ? (
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-medium">{formatEur(record.geringstes_gebot_eur)}</span>
+                  {record.geringstes_gebot_rang_betreibend ? (
+                    <span className="text-xs text-muted-foreground">
+                      Betrieben aus Rang {record.geringstes_gebot_rang_betreibend}
+                      {record.geringstes_gebot_quelle ? ` · Quelle: ${record.geringstes_gebot_quelle}` : ""}
+                    </span>
+                  ) : null}
+                  {record.geringstes_gebot_warnung ? (
+                    <span className="text-xs text-amber-700">⚠ {record.geringstes_gebot_warnung}</span>
+                  ) : null}
+                  {record.geringstes_gebot_notiz ? (
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-muted-foreground">Begründung anzeigen</summary>
+                      <pre className="whitespace-pre-wrap mt-1 text-foreground/90">{record.geringstes_gebot_notiz}</pre>
+                    </details>
+                  ) : null}
+                </div>
+              ) : "—"}
+            </Row>
             <Row label="Triage-Notiz">
               <span className="whitespace-pre-line">
                 {record.triage_note ?? "—"}
@@ -609,6 +632,9 @@ const ZvgAkteShowContent = () => {
             {record.status === "stop" ? (
               <Row label="Stop-Grund">{record.stop_reason ?? "—"}</Row>
             ) : null}
+            <div className="pt-2">
+              <GeringstesGebotButton akte={record} />
+            </div>
           </CardContent>
         </Card>
 

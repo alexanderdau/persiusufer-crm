@@ -117,6 +117,30 @@ const ZvgAkteEdit = () => (
         label="Bietreichweite (EUR)"
         helperText={false}
       />
+      <NumberInput
+        source="geringstes_gebot_eur"
+        label="Geringstes Gebot (EUR)"
+        helperText="Summe der vorgehenden Rechte/Lasten + Verfahrenskosten (§ 44 ZVG)"
+      />
+      <NumberInput
+        source="geringstes_gebot_rang_betreibend"
+        label="Betrieben aus Rang"
+        helperText="1 = höchster (idR nur öffentliche Lasten gehen vor) · 2+ = Abt-III-Vorränge zu berücksichtigen"
+        min={1}
+        max={20}
+      />
+      <TextInput
+        source="geringstes_gebot_warnung"
+        label="Warnhinweis (z. B. unklare Vorränge)"
+        helperText={false}
+      />
+      <TextInput
+        source="geringstes_gebot_notiz"
+        label="Begründung / Quelle"
+        multiline
+        rows={3}
+        helperText={false}
+      />
       <AgFilteredRechtspflegerInput />
       <SachverstaendigerInput />
     </SimpleForm>
