@@ -354,6 +354,32 @@ const lifeCycleCallbacks: ResourceCallbacks[] = [
       return applyFullTextSearch(["name", "category", "description"])(params);
     },
   },
+  {
+    resource: "zvg_akte",
+    beforeGetList: async (params) => {
+      return applyFullTextSearch([
+        "az",
+        "obj_titel",
+        "objekt_ort",
+        "objekt_ortsteil",
+        "ag_name_raw",
+      ])(params);
+    },
+  },
+  {
+    resource: "kleinanzeigen_grundstueck",
+    beforeGetList: async (params) => {
+      return applyFullTextSearch([
+        "title",
+        "ort",
+        "ortsteil",
+        "plz",
+        "strasse",
+        "gemarkung",
+        "anbieter_name",
+      ])(params);
+    },
+  },
 ];
 
 export const getDataProvider = () => {
