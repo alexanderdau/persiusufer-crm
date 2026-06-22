@@ -99,7 +99,18 @@ const ZvgAkteListLayout = () => {
             <DataTable.Col<ZvgAkte>
               source="objektart"
               label="Objektart"
-              render={(record) => record.objektart?.trim() ?? "—"}
+              cellClassName="max-w-[280px] sm:max-w-[360px] md:max-w-[480px]"
+              render={(record) => {
+                const txt = record.objektart?.trim() ?? "—";
+                return (
+                  <span
+                    className="block truncate"
+                    title={txt !== "—" ? txt : undefined}
+                  >
+                    {txt}
+                  </span>
+                );
+              }}
             />
             <DataTable.Col<ZvgAkte>
               source="gpreis_eur"
