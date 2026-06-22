@@ -12,7 +12,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter } from "lucide-react";
+import { Filter, X } from "lucide-react";
 
 const FlexForm = (props: React.FormHTMLAttributes<HTMLFormElement>) => (
   <form className="flex-1" {...props} />
@@ -128,13 +128,16 @@ export const ResponsiveFilters = ({
       {activeFiltersCount > 0 && (
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={handleClearFilters}
-          className="justify-start text-xs text-muted-foreground hover:text-foreground -mt-2 self-start h-7"
+          className="-mt-2 self-stretch justify-between h-8 border-accent/40 hover:bg-accent/10"
         >
-          {translate("ra.navigation.clear_filters", { _: "Filter zurücksetzen" })}
-          <Badge variant="secondary" className="ml-2 h-4 px-1.5 text-[10px]">
+          <span className="flex items-center gap-1.5">
+            <X className="size-3.5" />
+            {translate("ra.navigation.clear_filters", { _: "Filter zurücksetzen" })}
+          </span>
+          <Badge variant="secondary" className="h-5 px-1.5 text-[11px]">
             {activeFiltersCount}
           </Badge>
         </Button>
