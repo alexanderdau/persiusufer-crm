@@ -65,7 +65,12 @@ export const CompanyAside = ({ link = "edit" }: CompanyAsideProps) => {
 
 export const CompanyInfo = ({ record }: { record: Company }) => {
   const translate = useTranslate();
-  if (!record.website && !record.linkedin_url && !record.phone_number) {
+  if (
+    !record.website &&
+    !record.linkedin_url &&
+    !record.phone_number &&
+    !record.telefax
+  ) {
     return null;
   }
 
@@ -104,6 +109,13 @@ export const CompanyInfo = ({ record }: { record: Company }) => {
         <div className="flex flex-row items-center gap-1 min-h-[24px]">
           <Phone className="w-4 h-4" />
           <TextField source="phone_number" />
+        </div>
+      )}
+      {record.telefax && (
+        <div className="flex flex-row items-center gap-1 min-h-[24px]">
+          <Printer className="w-4 h-4" />
+          <span className="text-sm">Fax: </span>
+          <TextField source="telefax" />
         </div>
       )}
     </AsideSection>
@@ -299,7 +311,6 @@ export const AmtsgerichtContactInfo = ({ record }: { record: Company }) => {
   const translate = useTranslate();
   if (
     !record.email &&
-    !record.telefax &&
     !record.telefon_2 &&
     !record.telefon_3 &&
     !record.postanschrift
@@ -343,12 +354,6 @@ export const AmtsgerichtContactInfo = ({ record }: { record: Company }) => {
               </span>
             ) : null}
           </span>
-        </div>
-      ) : null}
-      {record.telefax ? (
-        <div className="flex flex-row items-center gap-1 min-h-[24px]">
-          <Printer className="w-4 h-4" />
-          <span className="text-sm">Fax: {record.telefax}</span>
         </div>
       ) : null}
       {record.postanschrift && record.postanschrift !== record.address ? (
