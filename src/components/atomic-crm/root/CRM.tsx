@@ -21,6 +21,7 @@ import { Dashboard } from "../dashboard/Dashboard";
 import { MobileDashboard } from "../dashboard/MobileDashboard";
 import deals from "../deals";
 import zvgAkten from "../zvgAkten";
+import zvgAnfrage from "../zvgAnfrage";
 import baugrundstuecke from "../baugrundstuecke";
 import React from "react";
 const BaugrundstueckStatistik = React.lazy(
@@ -277,6 +278,7 @@ const DesktopAdmin = (
       </CustomRoutes>
       <Resource name="deals" {...deals} />
       <Resource name="zvg_akte" {...zvgAkten} />
+      <Resource name="zvg_anfrage" {...zvgAnfrage} />
       <Resource name="kleinanzeigen_grundstueck" {...baugrundstuecke} />
       <Resource name="contacts" {...contacts} />
       <Resource name="companies" {...companies} />

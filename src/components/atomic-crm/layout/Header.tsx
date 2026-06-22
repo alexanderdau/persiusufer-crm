@@ -90,6 +90,11 @@ const Header = () => {
                     isActive={currentPath === "/zvg_akte"}
                   />
                   <NavigationTab
+                    label="Statusanfragen"
+                    to="/zvg_anfrage"
+                    isActive={currentPath === "/zvg_anfrage"}
+                  />
+                  <NavigationTab
                     label={translate("resources.kleinanzeigen_grundstueck.name", {
                       smart_count: 2,
                     })}

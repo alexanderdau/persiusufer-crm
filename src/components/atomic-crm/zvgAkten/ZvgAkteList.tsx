@@ -263,6 +263,45 @@ const ZvgAkteListFilter = () => {
   const in90 = addDays(now, 90).toISOString();
   const nowIso = now.toISOString();
 
+  // Letzter Werktag: Mo → Fr (3 zurück), So → Fr (2), Sa → Fr (1), Di-Fr → gestern (1).
+  // Feiertage werden in v1 ignoriert — falls relevant, Tag manuell überspringen.
+  const letzterWerktag = (() => {
+    const d = new Date(now);
+    const dow = d.getDay();
+    let back = 1;
+    if (dow === 1) back = 3;
+    else if (dow === 0) back = 2;
+    else if (dow === 6) back = 1;
+    d.setDate(d.getDate() - back);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  })();
+  const letzterWerktagStart = letzterWerktag.toISOString();
+  const letzterWerktagEnd = (() => {
+    const d = new Date(letzterWerktag);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  })();
+  const letzterWerktagLabel = letzterWerktag.toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+
+  // Diese Woche (Mo 00:00 bis So 23:59)
+  const wocheStart = (() => {
+    const d = new Date(now);
+    const dow = d.getDay();
+    const back = dow === 0 ? 6 : dow - 1; // Sonntag → 6 zurück, sonst dow-1
+    d.setDate(d.getDate() - back);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
+  const wocheEnd = (() => {
+    const d = new Date(now);
+    const dow = d.getDay();
+    const fwd = dow === 0 ? 0 : 7 - dow; // Sonntag bleibt, sonst bis nächster So
+    d.setDate(d.getDate() + fwd);
+    d.setHours(23, 59, 59, 999);
+    return d.toISOString();
+  })();
+
   const { filterValues } = useListContext();
   const { counts: blCounts } = useBundeslandCounts(filterValues || {});
 
@@ -294,6 +333,18 @@ const ZvgAkteListFilter = () => {
       </FilterCategory>
 
       <FilterCategory label="Termin" icon={<Clock />}>
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label={`Letzter Werktag (${letzterWerktagLabel})`}
+          value={{ "termin@gte": letzterWerktagStart, "termin@lte": letzterWerktagEnd }}
+          size={isMobile ? "lg" : undefined}
+        />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Diese Woche"
+          value={{ "termin@gte": wocheStart, "termin@lte": wocheEnd }}
+          size={isMobile ? "lg" : undefined}
+        />
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="Nächste 30 Tage"

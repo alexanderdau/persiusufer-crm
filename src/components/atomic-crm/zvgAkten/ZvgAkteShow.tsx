@@ -30,6 +30,7 @@ import { getSupabaseClient } from "../providers/supabase/supabase";
 import { useFavoriten } from "./useFavoriten";
 
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
+import { StatusanfrageButton } from "./StatusanfrageButton";
 
 const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL ?? "";
 const BILDER_BUCKET = "zvg-bilder";
@@ -585,6 +586,9 @@ const ZvgAkteShowContent = () => {
                 "—"
               )}
             </Row>
+            <div className="pt-2">
+              <StatusanfrageButton akte={record} />
+            </div>
           </CardContent>
         </Card>
 
