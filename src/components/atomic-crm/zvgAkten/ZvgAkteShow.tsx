@@ -603,26 +603,69 @@ const ZvgAkteShowContent = () => {
               {formatEur(record.bietreichweite_eur)}
             </Row>
             <Row label="Geringstes Gebot">
-              {record.geringstes_gebot_eur != null ? (
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-medium">{formatEur(record.geringstes_gebot_eur)}</span>
-                  {record.geringstes_gebot_rang_betreibend ? (
-                    <span className="text-xs text-muted-foreground">
-                      Betrieben aus Rang {record.geringstes_gebot_rang_betreibend}
-                      {record.geringstes_gebot_quelle ? ` · Quelle: ${record.geringstes_gebot_quelle}` : ""}
-                    </span>
-                  ) : null}
-                  {record.geringstes_gebot_warnung ? (
-                    <span className="text-xs text-amber-700">⚠ {record.geringstes_gebot_warnung}</span>
-                  ) : null}
-                  {record.geringstes_gebot_notiz ? (
-                    <details className="text-xs">
-                      <summary className="cursor-pointer text-muted-foreground">Begründung anzeigen</summary>
-                      <pre className="whitespace-pre-wrap mt-1 text-foreground/90">{record.geringstes_gebot_notiz}</pre>
-                    </details>
-                  ) : null}
-                </div>
-              ) : "—"}
+              {(() => {
+                const q = record.geringstes_gebot_quelle;
+                const hasResult = q && q !== "in_progress" && q !== "failed";
+                if (!hasResult && q !== "failed") return "—";
+                return (
+                  <div className="flex flex-col gap-1">
+                    {record.geringstes_gebot_eur != null ? (
+                      <>
+                        <span className="font-medium">{formatEur(record.geringstes_gebot_eur)}</span>
+                        {record.geringstes_gebot_rang_betreibend ? (
+                          <span className="text-xs text-muted-foreground">
+                            Betrieben aus Rang {record.geringstes_gebot_rang_betreibend} · Quelle: {q}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Quelle: {q}</span>
+                        )}
+                      </>
+                    ) : q === "failed" ? (
+                      <span className="text-sm text-red-700">Haiku-Job fehlgeschlagen</span>
+                    ) : (
+                      <span className="text-sm text-amber-700">
+                        Analysiert — aber kein eindeutiger Wert ableitbar
+                        {record.geringstes_gebot_rang_betreibend ? ` (Rang ${record.geringstes_gebot_rang_betreibend})` : ""}
+                        <span className="ml-1 text-muted-foreground">· Quelle: {q}</span>
+                      </span>
+                    )}
+                    {record.geringstes_gebot_warnung ? (
+                      <span className="text-xs text-amber-700 whitespace-pre-line">⚠ {record.geringstes_gebot_warnung}</span>
+                    ) : null}
+                    {record.geringstes_gebot_job_error ? (
+                      <span className="text-xs text-red-700 whitespace-pre-line">Fehler: {record.geringstes_gebot_job_error}</span>
+                    ) : null}
+                    {record.geringstes_gebot_notiz ? (
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-muted-foreground">Begründung anzeigen</summary>
+                        <pre className="whitespace-pre-wrap mt-1 text-foreground/90 font-sans">{record.geringstes_gebot_notiz}</pre>
+                      </details>
+                    ) : null}
+                    {record.geringstes_gebot_ermittelt_am ? (
+                      <span className="text-xs text-muted-foreground">
+                        Zuletzt analysiert: {new Date(record.geringstes_gebot_ermittelt_am).toLocaleString("de-DE")}
+                      </span>
+                    ) : null}
+                    {Array.isArray(record.bestehenbleibende_rechte_jsonb) && record.bestehenbleibende_rechte_jsonb.length > 0 ? (
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-muted-foreground">
+                          {record.bestehenbleibende_rechte_jsonb.length} bestehenbleibende Rechte
+                        </summary>
+                        <ul className="mt-1 space-y-1 pl-4 list-disc">
+                          {record.bestehenbleibende_rechte_jsonb.map((r: any, i: number) => (
+                            <li key={i}>
+                              Rang {r.rang ?? "?"} (Abt. {r.abteilung ?? "?"}): {r.art ?? ""}
+                              {r.glaeubiger ? ` — ${r.glaeubiger}` : ""}
+                              {r.valuta_eur_geschaetzt != null ? ` · ${Number(r.valuta_eur_geschaetzt).toLocaleString("de-DE")} EUR` : ""}
+                              {r.bemerkung ? <span className="text-muted-foreground"> ({r.bemerkung})</span> : null}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </Row>
             <Row label="Triage-Notiz">
               <span className="whitespace-pre-line">

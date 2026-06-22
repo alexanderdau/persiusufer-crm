@@ -39,6 +39,8 @@ export type ZvgAkte = {
   bestehenbleibende_rechte_jsonb?: any;
   geringstes_gebot_ermittelt_am?: string | null;
   geringstes_gebot_modell?: string | null;
+  geringstes_gebot_job_started_at?: string | null;
+  geringstes_gebot_job_error?: string | null;
   rechtspfleger_contact_id?: Identifier | null;
   sachverstaendiger_contact_id?: Identifier | null;
   deal_id?: Identifier | null;
