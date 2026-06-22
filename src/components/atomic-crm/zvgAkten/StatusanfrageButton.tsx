@@ -154,6 +154,44 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
     }
   };
 
+  const pollAnfrageStatus = (anfrageId: number, startedAt: string) => {
+    const sb = getSupabaseClient();
+    const startedMs = Date.parse(startedAt);
+    const deadline = Date.now() + 60_000;
+    const interval = window.setInterval(async () => {
+      if (Date.now() > deadline) {
+        window.clearInterval(interval);
+        setSending(false);
+        notify(`SMTP-Job läuft länger als 60 Sek — Status erscheint später unter „Statusanfragen". Entwurf #${anfrageId} bleibt bestehen.`, { type: "info" });
+        setOpen(false);
+        refresh();
+        return;
+      }
+      const { data } = await sb.from("zvg_anfrage")
+        .select("status, gesendet_am, job_error, sent_copy_info, gesendet_an_email")
+        .eq("id", anfrageId).single();
+      if (!data) return;
+      const sentAt = data.gesendet_am ? Date.parse(data.gesendet_am) : 0;
+      const done = data.status === "gesendet" && sentAt >= startedMs;
+      const failed = data.job_error != null;
+      if (done) {
+        window.clearInterval(interval);
+        setSending(false);
+        const sci = data.sent_copy_info;
+        const sentMsg = sci && sci.ok ? ` (Kopie im Ordner „${sci.folder}")` : sci && sci.attempted ? " (Sent-Kopie fehlgeschlagen)" : "";
+        notify(`✓ Statusanfrage an ${data.gesendet_an_email} versendet${sentMsg}.`, { type: "success" });
+        setOpen(false);
+        refresh();
+      } else if (failed) {
+        window.clearInterval(interval);
+        setSending(false);
+        notify(`SMTP-Versand fehlgeschlagen: ${data.job_error}. Entwurf #${anfrageId} bleibt unter „Statusanfragen".`, { type: "error" });
+        setOpen(false);
+        refresh();
+      }
+    }, 2000);
+  };
+
   const sendNow = async () => {
     if (!akte.ag_company_id) return;
     setSending(true);
@@ -187,6 +225,7 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
         notify(`Entwurf #${created.id} angelegt — keine E-Mail eingetragen, bitte per Fax oder Post versenden.`, { type: "info" });
         setOpen(false);
         refresh();
+        setSending(false);
         return;
       }
 
@@ -199,23 +238,36 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
           body_override: bodyText,
         },
       });
-      if (sendErr) {
-        notify(`SMTP-Versand fehlgeschlagen: ${sendErr.message}. Entwurf #${created.id} bleibt — Du kannst es später erneut versuchen.`, { type: "error" });
+      // Function startet jetzt Background-Job und returnt 202 mit job_started
+      if (sendErr || sendData?.error) {
+        // Browser-Response kaputt? Job kann trotzdem im Hintergrund laufen — DB checken
+        const check = await sb.from("zvg_anfrage").select("job_started_at, status").eq("id", created.id).single();
+        if (check.data?.job_started_at && check.data.status === "entwurf") {
+          notify(`SMTP-Versand läuft im Hintergrund (~5–15 Sek) — wird gepollt …`, { type: "info" });
+          pollAnfrageStatus(created.id, check.data.job_started_at);
+          return;
+        }
+        const msg = sendErr?.message ?? sendData?.error ?? "unbekannt";
+        notify(`Function-Fehler: ${msg}. Entwurf #${created.id} bleibt unter „Statusanfragen".`, { type: "error" });
+        setOpen(false);
         refresh();
-        return;
-      }
-      if (sendData?.error) {
-        notify(`Versand-Fehler: ${sendData.error}${sendData.details ? " — " + sendData.details : ""}. Entwurf #${created.id} bleibt.`, { type: "error" });
-        refresh();
+        setSending(false);
         return;
       }
 
-      notify(`✓ Statusanfrage an ${sendData?.to ?? to} versendet${sendData?.cc ? " (CC " + sendData.cc + ")" : ""}.`, { type: "success" });
+      if (sendData?.job_started && sendData?.started_at) {
+        notify(`SMTP-Versand läuft im Hintergrund (~5–15 Sek) …`, { type: "info" });
+        pollAnfrageStatus(created.id, sendData.started_at);
+        return;
+      }
+
+      // Fallback (alter synchroner Pfad)
+      notify(`✓ Statusanfrage versendet.`, { type: "success" });
       setOpen(false);
       refresh();
+      setSending(false);
     } catch (e: any) {
       notify(`Fehler: ${e?.message ?? e}`, { type: "error" });
-    } finally {
       setSending(false);
     }
   };

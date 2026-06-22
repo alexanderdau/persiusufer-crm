@@ -113,6 +113,53 @@ const ZvgAkteListLayout = () => {
               }}
             />
             <DataTable.Col<ZvgAkte>
+              label=""
+              source="geringstes_gebot_eur"
+              headerClassName="w-12"
+              cellClassName="w-12 px-1"
+              disableSort
+              render={(record) => {
+                const q = record.geringstes_gebot_quelle;
+                if (q === "in_progress") {
+                  return (
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 font-semibold px-1.5 py-0 h-5" title="Haiku-Analyse läuft">
+                      …
+                    </Badge>
+                  );
+                }
+                if (q === "failed") {
+                  return (
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 font-semibold px-1.5 py-0 h-5" title="Haiku-Job fehlgeschlagen">
+                      !
+                    </Badge>
+                  );
+                }
+                if (record.geringstes_gebot_eur != null) {
+                  const eur = Number(record.geringstes_gebot_eur);
+                  const k = eur >= 1000 ? Math.round(eur / 1000) + "k" : String(eur);
+                  const rang = record.geringstes_gebot_rang_betreibend;
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-amber-50 text-amber-800 border-amber-300 font-semibold px-1.5 py-0 h-5"
+                      title={`Geringstes Gebot: ${eur.toLocaleString("de-DE")} EUR${rang ? ` · Rang ${rang}` : ""}`}
+                    >
+                      {k}
+                    </Badge>
+                  );
+                }
+                // Quelle vorhanden, aber EUR=NULL (Haiku konnte nichts ableiten)
+                if (q && q !== "in_progress" && q !== "failed") {
+                  return (
+                    <Badge variant="outline" className="bg-zinc-50 text-zinc-600 border-zinc-300 font-semibold px-1.5 py-0 h-5" title="Geringstes Gebot analysiert, aber Dokumente liefern keinen eindeutigen Wert">
+                      ?
+                    </Badge>
+                  );
+                }
+                return null;
+              }}
+            />
+            <DataTable.Col<ZvgAkte>
               source="gpreis_eur"
               label=""
               headerClassName="w-8"
