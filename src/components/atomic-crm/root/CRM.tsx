@@ -4,6 +4,7 @@ import type {
   DashboardComponent,
   LayoutComponent,
 } from "ra-core";
+import AdminPage from "../admin/AdminPage";
 import { CustomRoutes, localStorageStore, Resource } from "ra-core";
 import { useEffect, useMemo } from "react";
 import { Route } from "react-router";
@@ -275,6 +276,7 @@ const DesktopAdmin = (
           path="/baugrundstuecke-statistik"
           element={<BaugrundstueckStatistik />}
         />
+        <Route path="/admin" element={<AdminPage />} />
       </CustomRoutes>
       <Resource name="deals" {...deals} />
       <Resource name="zvg_akte" {...zvgAkten} />

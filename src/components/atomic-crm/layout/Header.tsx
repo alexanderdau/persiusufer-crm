@@ -101,6 +101,11 @@ const Header = () => {
                     to="/kleinanzeigen_grundstueck"
                     isActive={currentPath === "/kleinanzeigen_grundstueck"}
                   />
+                  <NavigationTab
+                    label="Admin"
+                    to="/admin"
+                    isActive={currentPath.startsWith("/admin")}
+                  />
                 </nav>
               </div>
               <div className="flex items-center">
