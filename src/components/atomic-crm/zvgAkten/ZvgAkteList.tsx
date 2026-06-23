@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
-import { Clock, FileText, Heart, MapPin, TrendingUp } from "lucide-react";
+import { Clock, FileText, Heart, Mail, MailCheck, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
 import { useFavoriten } from "./useFavoriten";
+import { BatchAnfrageButton } from "./BatchAnfrageButton";
 import { states } from "../companies/states";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
@@ -86,6 +87,9 @@ const ZvgAkteListLayout = () => {
     <div className="flex flex-row gap-8">
       <ZvgAkteListFilter />
       <div className="w-full flex flex-col gap-4">
+        <div className="flex justify-end gap-2">
+          <BatchAnfrageButton />
+        </div>
         <Card className="py-0">
           <DataTable<ZvgAkte> rowClick="show" bulkActionButtons={false}>
             <DataTable.Col<ZvgAkte>
@@ -185,6 +189,55 @@ const ZvgAkteListLayout = () => {
                       title={`Gutachten kostenpflichtig (${record.gpreis_eur} €)`}
                     >
                       G€
+                    </Badge>
+                  );
+                }
+                return null;
+              }}
+            />
+            <DataTable.Col<ZvgAkte>
+              source="letzte_anfrage_status"
+              label=""
+              headerClassName="w-10"
+              cellClassName="w-10 px-1"
+              disableSort
+              render={(record) => {
+                const st = record.letzte_anfrage_status;
+                if (!st) return null;
+                const datum = record.letzte_anfrage_am
+                  ? new Date(record.letzte_anfrage_am).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" })
+                  : "";
+                if (st === "beantwortet") {
+                  const opt = record.letzte_anfrage_option;
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold px-1.5 py-0 h-5"
+                      title={`Antwort eingegangen${datum ? " am " + datum : ""}${opt ? " · Option " + opt : ""}`}
+                    >
+                      <MailCheck className="size-3" />
+                    </Badge>
+                  );
+                }
+                if (st === "gesendet") {
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-blue-50 text-blue-800 border-blue-300 font-semibold px-1.5 py-0 h-5"
+                      title={`Statusanfrage versendet${datum ? " am " + datum : ""}`}
+                    >
+                      <Mail className="size-3" />
+                    </Badge>
+                  );
+                }
+                if (st === "entwurf") {
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-zinc-50 text-zinc-600 border-zinc-300 font-semibold px-1.5 py-0 h-5"
+                      title={`Anfrage-Entwurf vorhanden${datum ? " seit " + datum : ""}`}
+                    >
+                      <Mail className="size-3 opacity-60" />
                     </Badge>
                   );
                 }

@@ -60,6 +60,10 @@ export type ZvgAkte = {
   bilder_paths?: string[] | null;
   notify_subscribed_at?: string | null;
   notify_email?: string | null;
+  letzte_anfrage_id?: number | null;
+  letzte_anfrage_status?: string | null;
+  letzte_anfrage_am?: string | null;
+  letzte_anfrage_option?: number | null;
 } & Pick<RaRecord, "id">;
 
 export const ZVG_STATUSES = [
