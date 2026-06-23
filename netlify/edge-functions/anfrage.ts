@@ -15,10 +15,42 @@ const escapeHtml = (s: unknown) =>
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-const CSS = `:root{--bg:#f5f5f4;--fg:#1c1917;--muted:#78716c;--accent:#166534;--border:#e7e5e4;--card:#fff;--danger:#b91c1c}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:24px 16px 80px;line-height:1.5}.wrap{max-width:640px;margin:0 auto}header{margin-bottom:24px}h1{font-size:22px;margin:0 0 4px;font-weight:600}.sub{color:var(--muted);font-size:14px}.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:12px}.meta{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;font-size:14px}.meta dt{color:var(--muted)}.meta dd{margin:0}fieldset{border:0;padding:0;margin:24px 0 0}legend{font-size:14px;color:var(--muted);margin-bottom:8px;padding:0}.opt{display:block;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:all .1s}.opt:hover{border-color:#a3a3a3}.opt input[type=radio]{margin-right:10px}.opt-label{font-weight:500}.opt-hint{color:var(--muted);font-size:13px;margin-top:2px;margin-left:24px}.opt:has(input:checked){border-color:var(--accent);background:#f0fdf4}.conditional{margin-top:10px;margin-left:24px;display:none;flex-direction:column;gap:8px}.opt:has(input:checked) .conditional{display:flex}label.field{font-size:13px;color:var(--muted)}input[type=date],input[type=time],input[type=text],textarea{font-family:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:white;width:100%;max-width:280px}textarea{max-width:100%;min-height:80px}.submit-row{margin-top:24px;display:flex;gap:12px;align-items:center}button{background:var(--accent);color:white;border:0;padding:12px 24px;font-size:15px;font-weight:500;border-radius:8px;cursor:pointer}.info{background:#fef3c7;border-left:3px solid #d97706;padding:10px 14px;margin:12px 0;border-radius:4px;font-size:14px}.success{background:#f0fdf4;border:1px solid #86efac;color:#14532d;padding:14px 16px;border-radius:8px;text-align:center}.danger{background:#fef2f2;border:1px solid #fca5a5;color:var(--danger);padding:14px 16px;border-radius:8px;text-align:center}footer{margin-top:40px;font-size:12px;color:var(--muted);text-align:center}footer a{color:inherit}`;
+const CSS = `:root{--bg:#f5f5f4;--fg:#1c1917;--muted:#78716c;--accent:#166534;--border:#e7e5e4;--card:#fff;--danger:#b91c1c}*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:24px 16px 80px;line-height:1.5}.wrap{max-width:640px;margin:0 auto}header{margin-bottom:24px}h1{font-size:22px;margin:0 0 4px;font-weight:600}.sub{color:var(--muted);font-size:14px}.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:12px}.meta{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;font-size:14px}.meta dt{color:var(--muted)}.meta dd{margin:0}fieldset{border:0;padding:0;margin:24px 0 0}legend{font-size:14px;color:var(--muted);margin-bottom:8px;padding:0}.opt{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:8px;cursor:pointer;transition:all .1s}.opt:hover{border-color:#a3a3a3}.opt.selected{border-color:var(--accent);background:#f0fdf4}.opt-head{display:flex;align-items:flex-start;gap:10px}.opt-head input[type=radio]{margin-top:3px;flex-shrink:0;width:18px;height:18px;accent-color:var(--accent);cursor:pointer}.opt-text{flex:1;min-width:0}.opt-label{font-weight:500;display:block}.opt-hint{color:var(--muted);font-size:13px;margin-top:2px}.conditional{margin-top:10px;margin-left:28px;display:none;flex-direction:column;gap:8px}.opt.selected .conditional{display:flex}.field{font-size:13px;color:var(--muted);display:block}input[type=date],input[type=time],input[type=text],textarea{font-family:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;background:white;width:100%;max-width:280px;margin-top:4px}textarea{max-width:100%;min-height:80px}.submit-row{margin-top:24px;display:flex;gap:12px;align-items:center}button{background:var(--accent);color:white;border:0;padding:12px 24px;font-size:15px;font-weight:500;border-radius:8px;cursor:pointer}.info{background:#fef3c7;border-left:3px solid #d97706;padding:10px 14px;margin:12px 0;border-radius:4px;font-size:14px}.success{background:#f0fdf4;border:1px solid #86efac;color:#14532d;padding:14px 16px;border-radius:8px;text-align:center}.danger{background:#fef2f2;border:1px solid #fca5a5;color:var(--danger);padding:14px 16px;border-radius:8px;text-align:center}footer{margin-top:40px;font-size:12px;color:var(--muted);text-align:center}footer a{color:inherit}`;
 
-function page(title: string, bodyHtml: string): string {
-  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapeHtml(title)}</title><style>${CSS}</style></head><body><div class="wrap">${bodyHtml}</div></body></html>`;
+const JS = `(function(){
+  function update(){
+    var radios = document.querySelectorAll('input[name="option"]');
+    radios.forEach(function(r){
+      var card = r.closest('.opt');
+      if (!card) return;
+      if (r.checked) card.classList.add('selected');
+      else card.classList.remove('selected');
+    });
+  }
+  document.addEventListener('change', function(e){
+    if (e.target && e.target.name === 'option') update();
+  });
+  document.addEventListener('click', function(e){
+    var card = e.target.closest && e.target.closest('.opt');
+    if (!card) return;
+    var radio = card.querySelector('input[type="radio"][name="option"]');
+    if (!radio) return;
+    // Klick auf das Card-Label (nicht auf input/conditional fields) → radio aktivieren
+    var inField = e.target.closest('.conditional, input, textarea, .field');
+    if (inField && inField !== card) return;
+    radio.checked = true;
+    update();
+  });
+  update();
+})();`;
+
+function page(title: string, bodyHtml: string, withScript = false): string {
+  const script = withScript ? `<script>${JS}</script>` : "";
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escapeHtml(title)}</title><style>${CSS}</style></head><body><div class="wrap">${bodyHtml}</div>${script}</body></html>`;
+}
+
+function optionCard(value: number, label: string, hint: string, conditional: string): string {
+  return `<div class="opt" data-value="${value}"><div class="opt-head"><input type="radio" name="option" value="${value}"${value === 1 ? " required" : ""}><div class="opt-text"><span class="opt-label">${label}</span>${hint ? `<div class="opt-hint">${hint}</div>` : ""}</div></div>${conditional ? `<div class="conditional">${conditional}</div>` : ""}</div>`;
 }
 
 function renderForm(akte: any, anfrage: any, token: string, error?: string): string {
@@ -27,8 +59,29 @@ function renderForm(akte: any, anfrage: any, token: string, error?: string): str
   const objektEsc = escapeHtml([akte.objektart, akte.objekt_ort].filter(Boolean).join(" — "));
   const dateStr = new Date(anfrage.gesendet_am ?? anfrage.created_at).toLocaleDateString("de-DE");
   const errorHtml = error ? `<div class="danger">${escapeHtml(error)}</div>` : "";
-  const body = `<header><h1>Statusauskunft Zwangsversteigerungsverfahren</h1><div class="sub">Auskunftsersuchen der Persiusufer Verwaltungs GmbH nach §§ 87 II 2 ZVG, 169 GVG</div></header>${errorHtml}<div class="card"><dl class="meta"><dt>Amtsgericht</dt><dd>${agEsc}</dd><dt>Aktenzeichen</dt><dd><strong>${azEsc}</strong></dd><dt>Objekt</dt><dd>${objektEsc}</dd><dt>Anfragedatum</dt><dd>${dateStr}</dd></dl></div><form method="POST" action="/${escapeHtml(token)}"><input type="hidden" name="csrf" value="${escapeHtml(token)}"><fieldset><legend>Teil A — Öffentliche Termin-Information (§§ 87 II 2 ZVG, 169 GVG)</legend><label class="opt"><input type="radio" name="option" value="1" required><span class="opt-label">(1) Versteigerungstermin steht noch aus</span><div class="opt-hint">Termin ist bereits bestimmt, hat aber noch nicht stattgefunden.</div><div class="conditional"><label class="field">Termin <input type="date" name="termin_1"></label><label class="field">Uhrzeit <input type="time" name="uhrzeit_1"></label><label class="field">Saal <input type="text" name="saal_1" placeholder="z. B. 3"></label></div></label><label class="opt"><input type="radio" name="option" value="2"><span class="opt-label">(2) Versteigerungstermin ist aufgehoben</span><div class="conditional"><label class="field">Folge-/Neuer Termin (sofern bekannt) <input type="date" name="termin_2"></label></div></label><label class="opt"><input type="radio" name="option" value="3"><span class="opt-label">(3) Termin hat stattgefunden — Verkündungstermin nach § 87 II ZVG bestimmt</span><div class="conditional"><label class="field">Verkündungstermin <input type="date" name="termin_3"></label><label class="field">Uhrzeit <input type="time" name="uhrzeit_3"></label><label class="field">Saal <input type="text" name="saal_3"></label></div></label><label class="opt"><input type="radio" name="option" value="4"><span class="opt-label">(4) Verfahren ist insgesamt aufgehoben / eingestellt</span><div class="opt-hint">z. B. nach §§ 28, 30, 31 ZVG.</div></label></fieldset><fieldset><legend>Teil B — Verfahrensstand (nur falls in Ihrem Ermessen mitteilbar)</legend><label class="opt"><input type="radio" name="option" value="5"><span class="opt-label">(5) Termin hat stattgefunden — Zuschlag im Termin verkündet</span></label><label class="opt"><input type="radio" name="option" value="6"><span class="opt-label">(6) Zuschlag wurde versagt (§§ 83 / 85 / 85a ZVG)</span><div class="conditional"><label class="field">Folgetermin (sofern bestimmt) <input type="date" name="termin_6"></label></div></label><label class="opt"><input type="radio" name="option" value="7"><span class="opt-label">(7) Verteilungstermin (nicht-öffentlich) ist bestimmt</span><div class="conditional"><label class="field">Termin <input type="date" name="termin_7"></label></div></label><label class="opt"><input type="radio" name="option" value="8"><span class="opt-label">(8) Sonstiger Verfahrensstand</span><div class="conditional"><label class="field">Bitte kurz beschreiben<br><textarea name="freitext" placeholder="z. B. Verfahren ausgesetzt, neuer Termin in Vorbereitung, ..."></textarea></label></div></label></fieldset><fieldset><legend>Absender (optional, aber hilfreich für Rückfragen)</legend><div class="card"><label class="field">Name<br><input type="text" name="sender_name" placeholder="z. B. Fischer"></label><div style="height:8px"></div><label class="field">Funktion<br><input type="text" name="sender_role" placeholder="z. B. Justizsekretärin, Rechtspflegerin"></label></div></fieldset><div class="submit-row"><button type="submit">Statusauskunft absenden</button><span class="sub" style="font-size:12px">Keine Anmeldung erforderlich</span></div></form><footer>Persiusufer Verwaltungs GmbH · Rosenheimer Str. 29 · 10781 Berlin · <a href="mailto:anfrage@persiusufer.de">anfrage@persiusufer.de</a><br>Auskunftsersuchen nach §§ 87 II 2 ZVG, 169 GVG. Datenverarbeitung nur zum Zweck der Verfahrensbeobachtung.</footer>`;
-  return page(`Statusauskunft Az. ${akte.az}`, body);
+
+  const opts = [
+    optionCard(1, "(1) Versteigerungstermin steht noch aus", "Termin ist bereits bestimmt, hat aber noch nicht stattgefunden.",
+      `<span class="field">Termin <input type="date" name="termin_1"></span><span class="field">Uhrzeit <input type="time" name="uhrzeit_1"></span><span class="field">Saal <input type="text" name="saal_1" placeholder="z. B. 3"></span>`),
+    optionCard(2, "(2) Versteigerungstermin ist aufgehoben", "",
+      `<span class="field">Folge-/Neuer Termin (sofern bekannt) <input type="date" name="termin_2"></span>`),
+    optionCard(3, "(3) Termin hat stattgefunden — Verkündungstermin nach § 87 II ZVG bestimmt", "",
+      `<span class="field">Verkündungstermin <input type="date" name="termin_3"></span><span class="field">Uhrzeit <input type="time" name="uhrzeit_3"></span><span class="field">Saal <input type="text" name="saal_3"></span>`),
+    optionCard(4, "(4) Verfahren ist insgesamt aufgehoben / eingestellt", "z. B. nach §§ 28, 30, 31 ZVG.", ""),
+    optionCard(5, "(5) Termin hat stattgefunden — Zuschlag im Termin verkündet", "", ""),
+    optionCard(6, "(6) Zuschlag wurde versagt (§§ 83 / 85 / 85a ZVG)", "",
+      `<span class="field">Folgetermin (sofern bestimmt) <input type="date" name="termin_6"></span>`),
+    optionCard(7, "(7) Verteilungstermin (nicht-öffentlich) ist bestimmt", "",
+      `<span class="field">Termin <input type="date" name="termin_7"></span>`),
+    optionCard(8, "(8) Sonstiger Verfahrensstand", "",
+      `<span class="field">Bitte kurz beschreiben<br><textarea name="freitext" placeholder="z. B. Verfahren ausgesetzt, neuer Termin in Vorbereitung, ..."></textarea></span>`),
+  ];
+
+  const teilA = opts.slice(0, 4).join("");
+  const teilB = opts.slice(4).join("");
+
+  const body = `<header><h1>Statusauskunft Zwangsversteigerungsverfahren</h1><div class="sub">Auskunftsersuchen der Persiusufer Verwaltungs GmbH nach §§ 87 II 2 ZVG, 169 GVG</div></header>${errorHtml}<div class="card"><dl class="meta"><dt>Amtsgericht</dt><dd>${agEsc}</dd><dt>Aktenzeichen</dt><dd><strong>${azEsc}</strong></dd><dt>Objekt</dt><dd>${objektEsc}</dd><dt>Anfragedatum</dt><dd>${dateStr}</dd></dl></div><form method="POST" action="/${escapeHtml(token)}"><input type="hidden" name="csrf" value="${escapeHtml(token)}"><fieldset><legend>Teil A — Öffentliche Termin-Information (§§ 87 II 2 ZVG, 169 GVG)</legend>${teilA}</fieldset><fieldset><legend>Teil B — Verfahrensstand (nur falls in Ihrem Ermessen mitteilbar)</legend>${teilB}</fieldset><fieldset><legend>Absender (optional, aber hilfreich für Rückfragen)</legend><div class="card"><span class="field">Name<br><input type="text" name="sender_name" placeholder="z. B. Fischer"></span><div style="height:8px"></div><span class="field">Funktion<br><input type="text" name="sender_role" placeholder="z. B. Justizsekretärin, Rechtspflegerin"></span></div></fieldset><div class="submit-row"><button type="submit">Statusauskunft absenden</button><span class="sub" style="font-size:12px">Keine Anmeldung erforderlich</span></div></form><footer>Persiusufer Verwaltungs GmbH · Rosenheimer Str. 29 · 10781 Berlin · <a href="mailto:anfrage@persiusufer.de">anfrage@persiusufer.de</a><br>Auskunftsersuchen nach §§ 87 II 2 ZVG, 169 GVG. Datenverarbeitung nur zum Zweck der Verfahrensbeobachtung.</footer>`;
+  return page(`Statusauskunft Az. ${akte.az}`, body, true);
 }
 
 function renderSuccess(akte: any, option: number): string {
@@ -56,12 +109,10 @@ const composeTimestamp = (d: string, t?: string | null): string => {
 export default async (req: Request, context: Context) => {
   const url = new URL(req.url);
 
-  // Nur unter anfrage.persiusufer.de aktiv
   if (!url.hostname.startsWith("anfrage.")) {
     return context.next();
   }
 
-  // Token aus dem Pfad: /<token>
   const pathMatch = url.pathname.match(/^\/([a-z2-9]{20,24})$/i);
   const token = pathMatch ? pathMatch[1] : null;
 
