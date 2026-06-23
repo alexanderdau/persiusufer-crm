@@ -496,7 +496,7 @@ const VkwFilter = () => {
           onChange={(e) => setRange(e.target.value, bisRaw)}
           disabled={onlyKa}
           placeholder="z. B. 50000"
-          className="border border-input rounded-md px-2 py-1 text-sm bg-background tabular-nums disabled:opacity-50"
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background tabular-nums disabled:opacity-50 w-full max-w-[10rem]"
         />
       </label>
       <label className="text-xs text-muted-foreground flex flex-col gap-1">
@@ -510,7 +510,7 @@ const VkwFilter = () => {
           onChange={(e) => setRange(vonRaw, e.target.value)}
           disabled={onlyKa}
           placeholder="z. B. 250000"
-          className="border border-input rounded-md px-2 py-1 text-sm bg-background tabular-nums disabled:opacity-50"
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background tabular-nums disabled:opacity-50 w-full max-w-[10rem]"
         />
       </label>
       <button
@@ -575,7 +575,7 @@ const TerminDatumPicker = () => {
           type="date"
           value={von}
           onChange={(e) => apply(e.target.value, bis)}
-          className="border border-input rounded-md px-2 py-1 text-sm bg-background"
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background w-full max-w-[10rem]"
         />
       </label>
       <label className="text-xs text-muted-foreground flex flex-col gap-1">
@@ -584,7 +584,7 @@ const TerminDatumPicker = () => {
           type="date"
           value={bis}
           onChange={(e) => apply(von, e.target.value)}
-          className="border border-input rounded-md px-2 py-1 text-sm bg-background"
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background w-full max-w-[10rem]"
         />
       </label>
       {aktiv && (
