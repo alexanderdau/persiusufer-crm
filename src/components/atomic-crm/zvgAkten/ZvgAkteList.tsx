@@ -367,6 +367,52 @@ const useBundeslandCounts = (
   return { counts, loading };
 };
 
+const StatusTriToggle = ({ statusValue, label, isMobile }: { statusValue: string; label: string; isMobile: boolean }) => {
+  const { filterValues, setFilters } = useListContext();
+  const filters = (filterValues ?? {}) as Record<string, unknown>;
+  const isInclude = filters.status === statusValue;
+  const isExclude = filters["status@neq"] === statusValue;
+
+  const cycle = () => {
+    const nf: Record<string, unknown> = { ...filters };
+    delete nf.status;
+    delete nf["status@neq"];
+    if (!isInclude && !isExclude) nf.status = statusValue;
+    else if (isInclude) nf["status@neq"] = statusValue;
+    // exclude → off (nichts hinzufügen)
+    setFilters(nf, {}, false);
+  };
+
+  const baseCls = "w-auto md:w-full flex items-center justify-between rounded-md border px-3 text-sm transition-colors";
+  const sizeCls = isMobile ? "h-10" : "md:h-8 h-10";
+  const stateCls = isInclude
+    ? "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100"
+    : isExclude
+      ? "bg-rose-50 text-rose-900 border-rose-300 hover:bg-rose-100 line-through decoration-rose-700/60"
+      : "bg-transparent border-transparent hover:bg-muted text-foreground";
+
+  const prefix = isExclude ? "≠ " : "";
+  const indicator = isInclude ? "✓" : isExclude ? "✕" : "";
+
+  return (
+    <button
+      type="button"
+      onClick={cycle}
+      className={`${baseCls} ${sizeCls} ${stateCls}`}
+      title={
+        isInclude
+          ? `Filter: nur '${label}' (Klick: ausschließen)`
+          : isExclude
+            ? `Filter: alles außer '${label}' (Klick: aufheben)`
+            : `Klick: nur '${label}' anzeigen`
+      }
+    >
+      <span>{prefix}{label}</span>
+      <span className="text-xs tabular-nums opacity-70">{indicator}</span>
+    </button>
+  );
+};
+
 const TerminDatumPicker = () => {
   const { filterValues, setFilters } = useListContext();
   const filters = (filterValues ?? {}) as Record<string, unknown>;
@@ -512,12 +558,11 @@ const ZvgAkteListFilter = () => {
 
       <FilterCategory label="Status" icon={<TrendingUp />}>
         {ZVG_STATUSES.map((status) => (
-          <ToggleFilterButton
+          <StatusTriToggle
             key={status.value}
-            className="w-auto md:w-full justify-between h-10 md:h-8"
+            statusValue={status.value}
             label={status.label}
-            value={{ status: status.value }}
-            size={isMobile ? "lg" : undefined}
+            isMobile={isMobile}
           />
         ))}
       </FilterCategory>
