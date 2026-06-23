@@ -19,14 +19,17 @@ import { BatchAnfrageButton, BulkBatchAnfrageButton } from "./BatchAnfrageButton
 import { states } from "../companies/states";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
-const formatEur = (value?: number | null) =>
-  value == null
-    ? "—"
-    : new Intl.NumberFormat("de-DE", {
-        style: "currency",
-        currency: "EUR",
-        maximumFractionDigits: 0,
-      }).format(Number(value));
+const formatEur = (value?: number | null) => {
+  if (value == null) return "—";
+  const n = Number(value);
+  // Marker-Werte (0 € / 1 €) bedeuten faktisch "kein Verkehrswert ermittelt"
+  if (n <= 1) return "k. A.";
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(n);
+};
 
 const formatDate = (value?: string | null) => {
   if (!value) return "—";
