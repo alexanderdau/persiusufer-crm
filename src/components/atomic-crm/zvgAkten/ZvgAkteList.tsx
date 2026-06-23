@@ -167,6 +167,26 @@ const ZvgAkteListLayout = () => {
               }}
             />
             <DataTable.Col<ZvgAkte>
+              source="dokumente_count"
+              label=""
+              headerClassName="w-8"
+              cellClassName="w-8 px-1"
+              disableSort
+              render={(record) => {
+                const n = record.dokumente_count ?? 0;
+                if (n === 0) return null;
+                return (
+                  <Badge
+                    variant="outline"
+                    className="bg-slate-50 text-slate-700 border-slate-300 font-semibold px-1.5 py-0 h-5 tabular-nums"
+                    title={`${n} Dokument${n === 1 ? "" : "e"} im Storage`}
+                  >
+                    {n}
+                  </Badge>
+                );
+              }}
+            />
+            <DataTable.Col<ZvgAkte>
               source="gpreis_eur"
               label=""
               headerClassName="w-8"
