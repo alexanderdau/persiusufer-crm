@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
-import { Clock, Coins, FileText, Heart, Mail, MailCheck, MapPin, TrendingUp } from "lucide-react";
+import { BookText, Clock, Coins, FileText, Files, Gavel, Heart, Mail, MailCheck, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -120,7 +120,7 @@ const ZvgAkteListLayout = () => {
               }}
             />
             <DataTable.Col<ZvgAkte>
-              label=""
+              label={<span title="Geringstes Gebot (aus Anordnung/Gutachten extrahiert)"><Gavel className="size-3.5 inline-block" /></span>}
               source="geringstes_gebot_eur"
               headerClassName="w-12"
               cellClassName="w-12 px-1"
@@ -168,7 +168,7 @@ const ZvgAkteListLayout = () => {
             />
             <DataTable.Col<ZvgAkte>
               source="dokumente_count"
-              label=""
+              label={<span title="Anzahl Dokumente im Storage (Anordnung, Gutachten, Exposé etc.)"><Files className="size-3.5 inline-block" /></span>}
               headerClassName="w-8"
               cellClassName="w-8 px-1"
               disableSort
@@ -188,7 +188,7 @@ const ZvgAkteListLayout = () => {
             />
             <DataTable.Col<ZvgAkte>
               source="gpreis_eur"
-              label=""
+              label={<span title="Gutachten verfügbar (grün) oder kostenpflichtig (G€)"><BookText className="size-3.5 inline-block" /></span>}
               headerClassName="w-8"
               cellClassName="w-8"
               disableSort
