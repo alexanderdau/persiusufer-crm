@@ -32,48 +32,31 @@ const buildAnrede = (rp: Rp | null) => {
   return `Sehr geehrte/r ${title}${rp.last_name}`;
 };
 
-const buildBody = (az: string, anrede: string, rpKnown: boolean) => {
+const FORM_URL_BASE = "https://ujiiaqvwpnniaasdhyrb.supabase.co/functions/v1/zvg-anfrage-reply-form";
+
+const generateReplyToken = (): string => {
+  const chars = "abcdefghijkmnpqrstuvwxyz23456789";
+  const arr = new Uint8Array(22);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => chars[b % chars.length]).join("");
+};
+
+const buildBody = (az: string, anrede: string, rpKnown: boolean, formUrl: string) => {
   const einleitung = rpKnown
-    ? "da Sie das o. g. Zwangsversteigerungsverfahren als Rechtspfleger:in leiten,"
+    ? "da Sie das o. g. Zwangsversteigerungsverfahren als Rechtspfleger:in leiten, "
     : "";
   return `${anrede},
 
-${einleitung} ich bitte um eine kurze Statusauskunft zum Aktenzeichen ${az}.
+${einleitung}ich bitte um eine kurze Statusauskunft zum Aktenzeichen ${az}.
 
-Mir ist bewusst, dass eine Auskunft über den vollständigen Verfahrensstand nach § 42 ZVG den Verfahrensbeteiligten vorbehalten ist. Mein Anliegen beschränkt sich daher in Teil A auf die ohnehin öffentliche Termin-Bekanntmachung nach §§ 87 II 2 ZVG, 169 GVG, die Sie durch Anheftung an die Gerichtstafel publik machen.
+Mir ist bewusst, dass eine Auskunft über den vollständigen Verfahrensstand nach § 42 ZVG den Verfahrensbeteiligten vorbehalten ist. Mein Anliegen beschränkt sich auf die ohnehin öffentliche Termin-Bekanntmachung nach §§ 87 II 2 ZVG, 169 GVG, die Sie durch Anheftung an die Gerichtstafel publik machen.
 
+Um Ihnen Aufwand zu ersparen, können Sie die Auskunft über ein einfaches Online-Formular geben – 30 Sekunden, keine Anmeldung, keine Cookies:
 
-Teil A — Öffentliche Termin-Information (§§ 87 II 2 ZVG, 169 GVG)
+   ${formUrl}
 
-[ ] (1) Versteigerungstermin steht noch aus.
-        Neuer Termin: ____________ , Saal ____ , Uhrzeit ____
+Alternativ genügt eine kurze E-Mail-Antwort in einem Satz, z. B. „Termin am 15.08.2026, Saal 3, 10:00 Uhr" oder „Verfahren eingestellt nach § 30 ZVG".
 
-[ ] (2) Versteigerungstermin ist aufgehoben.
-        Folge-/Neuer Termin (sofern bekannt): ____________
-
-[ ] (3) Versteigerungstermin hat stattgefunden;
-        Verkündungstermin nach § 87 II ZVG bestimmt auf
-        ____________ , Saal ____ , Uhrzeit ____
-
-[ ] (4) Verfahren ist insgesamt aufgehoben / eingestellt
-        (z. B. nach §§ 28, 30, 31 ZVG).
-
-
-Teil B — Verfahrensstand (nur falls in Ihrem Ermessen mitteilbar)
-
-[ ] (5) Versteigerungstermin hat stattgefunden;
-        Zuschlag wurde im Termin verkündet.
-
-[ ] (6) Zuschlag wurde versagt (§§ 83 / 85 / 85a ZVG).
-        Folgetermin: ____________ (sofern bereits bestimmt)
-
-[ ] (7) Verteilungstermin (nicht-öffentlich) ist bestimmt
-        auf ___________ .
-
-[ ] (8) Sonstiger Verfahrensstand:
-        _________________________________________________________
-
-Eine formfreie Antwort mit angekreuzter Option ist ausreichend.
 Vielen Dank für Ihre kurze Rückmeldung.
 
 Mit freundlichen Grüßen
@@ -94,6 +77,7 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState("");
   const [bodyText, setBodyText] = useState("");
+  const [replyToken, setReplyToken] = useState<string>("");
   const [agInfo, setAgInfo] = useState<{ name: string | null; hasEmail: boolean; fax: string | null; emailHinweis: string | null } | null>(null);
   const [rateInfo, setRateInfo] = useState<{ ok: boolean; sperreBis?: string; letzteAm?: string; letzteZid?: string } | null>(null);
 
@@ -137,7 +121,10 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
       }
 
       const anrede = buildAnrede(rp);
-      const defaultBody = buildBody(akte.az ?? "", anrede, !!rp);
+      const token = generateReplyToken();
+      const formUrl = `${FORM_URL_BASE}?t=${token}`;
+      const defaultBody = buildBody(akte.az ?? "", anrede, !!rp, formUrl);
+      setReplyToken(token);
       const defaultSubject = `Auskunftsersuchen Zwangsversteigerungsverfahren - Az. ${akte.az ?? ""} [#PU-${akte.zid}]`;
 
       setTo(trimmedEmail);
@@ -228,6 +215,7 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
           betreff: subject || null,
           body: bodyText || null,
           gesendet_an_email: hasEmail ? to.trim() : null,
+          reply_token: replyToken || null,
         })
         .select("id")
         .single();
