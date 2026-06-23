@@ -585,7 +585,7 @@ const TerminDatumPicker = () => {
         <input
           type="date"
           value={von}
-          onChange={(e) => apply(e.target.value, bis)}
+          onChange={(e) => apply(e.target.value, bis || e.target.value)}
           className="border border-input rounded-md px-2 py-1 text-sm bg-background w-full max-w-[10rem]"
         />
       </label>
