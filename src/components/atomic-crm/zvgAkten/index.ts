@@ -65,6 +65,7 @@ export type ZvgAkte = {
   letzte_anfrage_am?: string | null;
   letzte_anfrage_option?: number | null;
   vkw_unbekannt?: boolean | null;
+  hat_gutachten_lokal?: boolean | null;
 } & Pick<RaRecord, "id">;
 
 export const ZVG_STATUSES = [

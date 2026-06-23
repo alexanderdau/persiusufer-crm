@@ -173,12 +173,16 @@ const ZvgAkteListLayout = () => {
               cellClassName="w-8"
               disableSort
               render={(record) => {
-                if (record.gpreis_eur === 0 && record.gutachten_url) {
+                // Grüne Pille: Gutachten lokal verfügbar (zvg-portal-Backfill)
+                // oder via zvg.com kostenlos
+                const lokal = record.hat_gutachten_lokal === true;
+                const kostenlos = record.gpreis_eur === 0 && record.gutachten_url;
+                if (lokal || kostenlos) {
                   return (
                     <Badge
                       variant="outline"
                       className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
-                      title="Kostenloses Gutachten vorhanden"
+                      title={lokal ? "Gutachten lokal verfügbar" : "Kostenloses Gutachten (zvg.com)"}
                     >
                       G
                     </Badge>
