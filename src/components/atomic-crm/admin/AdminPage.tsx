@@ -131,7 +131,7 @@ export const AdminPage = () => {
               type="button"
               variant="outline"
               onClick={() => {
-                if (!window.confirm("Alle „keine PDFs"-Markierungen zurücksetzen, sodass die Akten nochmal probiert werden?")) return;
+                if (!window.confirm("Alle keine-PDFs-Markierungen zurücksetzen, sodass die Akten nochmal probiert werden?")) return;
                 callAction("reset_no_docs", {}, "no_docs-Flag zurückgesetzt");
               }}
               disabled={busy !== null}
