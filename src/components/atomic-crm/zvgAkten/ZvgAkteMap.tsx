@@ -65,6 +65,7 @@ export const ZvgAkteMap = () => {
       .select("zid, az, ag_name_raw, objektart, objekt_strasse, objekt_plz, objekt_ort, objekt_lat, objekt_lon, termin, vkw_eur, status, letzte_anfrage_status", { count: "exact" })
       .not("objekt_lat", "is", null)
       .not("objekt_lon", "is", null)
+      .gt("objekt_lat", -1)
       .limit(2000);
 
     // Filter aus listContext anwenden — gleiches Schema wie in ZvgAkteList
