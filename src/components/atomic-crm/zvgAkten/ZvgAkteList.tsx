@@ -273,6 +273,11 @@ const ZvgAkteListLayout = () => {
               }
             />
             <DataTable.Col<ZvgAkte>
+              source="ag_name_raw"
+              label="Amtsgericht"
+              render={(record) => record.ag_name_raw ?? "—"}
+            />
+            <DataTable.Col<ZvgAkte>
               source="status"
               label="Status"
               render={(record) => (
