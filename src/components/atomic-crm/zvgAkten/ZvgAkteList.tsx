@@ -364,6 +364,65 @@ const useBundeslandCounts = (
   return { counts, loading };
 };
 
+const TerminDatumPicker = () => {
+  const { filterValues, setFilters } = useListContext();
+  const filters = (filterValues ?? {}) as Record<string, unknown>;
+  const vonIso = typeof filters["termin@gte"] === "string" ? (filters["termin@gte"] as string) : "";
+  const bisIso = typeof filters["termin@lte"] === "string" ? (filters["termin@lte"] as string) : "";
+  const von = vonIso ? vonIso.slice(0, 10) : "";
+  const bis = bisIso ? bisIso.slice(0, 10) : "";
+
+  const apply = (newVon: string, newBis: string) => {
+    const nf: Record<string, unknown> = { ...filters };
+    delete nf["termin@gte"];
+    delete nf["termin@lte"];
+    if (newVon) nf["termin@gte"] = newVon + "T00:00:00.000Z";
+    if (newBis) nf["termin@lte"] = newBis + "T23:59:59.999Z";
+    setFilters(nf, {}, false);
+  };
+
+  const reset = () => {
+    const nf: Record<string, unknown> = { ...filters };
+    delete nf["termin@gte"];
+    delete nf["termin@lte"];
+    delete nf["status@neq"];
+    setFilters(nf, {}, false);
+  };
+
+  const aktiv = von || bis;
+  return (
+    <div className="flex flex-col gap-2 px-1 pt-1">
+      <label className="text-xs text-muted-foreground flex flex-col gap-1">
+        Von
+        <input
+          type="date"
+          value={von}
+          onChange={(e) => apply(e.target.value, bis)}
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background"
+        />
+      </label>
+      <label className="text-xs text-muted-foreground flex flex-col gap-1">
+        Bis
+        <input
+          type="date"
+          value={bis}
+          onChange={(e) => apply(von, e.target.value)}
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background"
+        />
+      </label>
+      {aktiv && (
+        <button
+          type="button"
+          onClick={reset}
+          className="text-xs text-muted-foreground hover:text-foreground self-start underline"
+        >
+          Zurücksetzen
+        </button>
+      )}
+    </div>
+  );
+};
+
 const ZvgAkteListFilter = () => {
   const isMobile = useIsMobile();
   const { favoriten } = useFavoriten();
@@ -461,6 +520,7 @@ const ZvgAkteListFilter = () => {
       </FilterCategory>
 
       <FilterCategory label="Termin" icon={<Clock />}>
+        <TerminDatumPicker />
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label={`Heute (${heuteLabel})`}
