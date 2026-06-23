@@ -138,7 +138,7 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
 
       const anrede = buildAnrede(rp);
       const defaultBody = buildBody(akte.az ?? "", anrede, !!rp);
-      const defaultSubject = `Auskunftsersuchen Zwangsversteigerungsverfahren · Az. ${akte.az ?? ""}`;
+      const defaultSubject = `Auskunftsersuchen Zwangsversteigerungsverfahren · Az. ${akte.az ?? ""} [#PU-${akte.zid}]`;
 
       setTo(trimmedEmail);
       setCc(rpCc);
