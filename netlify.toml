@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# anfrage.persiusufer.de → Magic-Link-Form
+# Bei allen anderen Hosts (crm.persiusufer.de etc.) wird die Edge Function
+# via context.next() durchgereicht → normales CRM-Bundle
+[[edge_functions]]
+  path = "/*"
+  function = "anfrage"

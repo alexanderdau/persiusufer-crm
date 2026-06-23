@@ -32,7 +32,7 @@ const buildAnrede = (rp: Rp | null) => {
   return `Sehr geehrte/r ${title}${rp.last_name}`;
 };
 
-const FORM_URL_BASE = "https://ujiiaqvwpnniaasdhyrb.supabase.co/functions/v1/zvg-anfrage-reply-form";
+const FORM_URL_BASE = "https://anfrage.persiusufer.de";
 
 const generateReplyToken = (): string => {
   const chars = "abcdefghijkmnpqrstuvwxyz23456789";
@@ -122,7 +122,7 @@ export const StatusanfrageButton = ({ akte }: { akte: ZvgAkte }) => {
 
       const anrede = buildAnrede(rp);
       const token = generateReplyToken();
-      const formUrl = `${FORM_URL_BASE}?t=${token}`;
+      const formUrl = `${FORM_URL_BASE}/${token}`;
       const defaultBody = buildBody(akte.az ?? "", anrede, !!rp, formUrl);
       setReplyToken(token);
       const defaultSubject = `Auskunftsersuchen Zwangsversteigerungsverfahren - Az. ${akte.az ?? ""} [#PU-${akte.zid}]`;
