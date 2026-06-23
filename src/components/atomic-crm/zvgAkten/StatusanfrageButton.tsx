@@ -60,6 +60,8 @@ Alternativ genügt eine kurze E-Mail-Antwort in einem Satz, z. B. „Termin am 1
 Vielen Dank für Ihre kurze Rückmeldung.
 
 Mit freundlichen Grüßen
+
+Alexander Dau
 Persiusufer Verwaltungs GmbH
 anfrage@persiusufer.de`;
 };
