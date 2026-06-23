@@ -193,18 +193,29 @@ const ZvgAkteListLayout = () => {
               cellClassName="w-8"
               disableSort
               render={(record) => {
-                // Grüne Pille: Gutachten lokal verfügbar (zvg-portal-Backfill)
-                // oder via zvg.com kostenlos
-                const lokal = record.hat_gutachten_lokal === true;
+                // Priorität: volles Gutachten > Exposé > zvg.com kostenlos > kostenpflichtig
+                const hatGutachten = record.hat_gutachten_lokal === true;
+                const hatExpose = record.hat_expose_lokal === true;
                 const kostenlos = record.gpreis_eur === 0 && record.gutachten_url;
-                if (lokal || kostenlos) {
+                if (hatGutachten || kostenlos) {
                   return (
                     <Badge
                       variant="outline"
                       className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
-                      title={lokal ? "Gutachten lokal verfügbar" : "Kostenloses Gutachten (zvg.com)"}
+                      title={hatGutachten ? "Gutachten lokal verfügbar" : "Kostenloses Gutachten (zvg.com)"}
                     >
                       G
+                    </Badge>
+                  );
+                }
+                if (hatExpose) {
+                  return (
+                    <Badge
+                      variant="outline"
+                      className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
+                      title="Exposé verfügbar (kein vollständiges Gutachten)"
+                    >
+                      E
                     </Badge>
                   );
                 }
