@@ -212,8 +212,8 @@ const ZvgAkteListLayout = () => {
                   return (
                     <Badge
                       variant="outline"
-                      className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
-                      title="Exposé verfügbar (kein vollständiges Gutachten)"
+                      className="bg-amber-50 text-amber-800 border-amber-300 font-semibold px-1.5 py-0 h-5"
+                      title="Nur Exposé verfügbar — kein vollständiges Gutachten"
                     >
                       E
                     </Badge>
