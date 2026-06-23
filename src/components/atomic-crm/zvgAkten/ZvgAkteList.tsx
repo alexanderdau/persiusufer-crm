@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
-import { BookText, Clock, Coins, FileText, Files, Gavel, Heart, Mail, MailCheck, MapPin, TrendingUp } from "lucide-react";
+import { BookText, Clock, Coins, FileText, Files, Gavel, Heart, List, Mail, MailCheck, Map as MapIcon, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
 import { useFavoriten } from "./useFavoriten";
 import { BatchAnfrageButton, BulkBatchAnfrageButton } from "./BatchAnfrageButton";
+import { ZvgAkteMap } from "./ZvgAkteMap";
 import { states } from "../companies/states";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
@@ -90,9 +91,11 @@ const ZvgAkteListLayout = () => {
     <div className="flex flex-row gap-8">
       <ZvgAkteListFilter />
       <div className="w-full flex flex-col gap-4">
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-between gap-2 items-center">
+          <ViewToggle />
           <BatchAnfrageButton />
         </div>
+        <ViewSwitchedContent>
         <Card className="py-0">
           <DataTable<ZvgAkte> rowClick="show" bulkActionButtons={<BulkBatchAnfrageButton />}>
             <DataTable.Col<ZvgAkte>
@@ -326,9 +329,52 @@ const ZvgAkteListLayout = () => {
             />
           </DataTable>
         </Card>
+        </ViewSwitchedContent>
       </div>
     </div>
   );
+};
+
+// View-Toggle Liste / Map — Zustand in localStorage, default Liste
+const ViewToggle = () => {
+  const [view, setView] = useViewMode();
+  return (
+    <div className="inline-flex rounded-md border bg-background overflow-hidden text-sm">
+      <button
+        type="button"
+        onClick={() => setView("list")}
+        className={"px-3 py-1.5 flex items-center gap-1.5 " + (view === "list" ? "bg-muted font-medium" : "hover:bg-muted/50 text-muted-foreground")}
+      >
+        <List className="size-4" />
+        Liste
+      </button>
+      <button
+        type="button"
+        onClick={() => setView("map")}
+        className={"px-3 py-1.5 flex items-center gap-1.5 border-l " + (view === "map" ? "bg-muted font-medium" : "hover:bg-muted/50 text-muted-foreground")}
+      >
+        <MapIcon className="size-4" />
+        Karte
+      </button>
+    </div>
+  );
+};
+
+const ViewSwitchedContent = ({ children }: { children: React.ReactNode }) => {
+  const [view] = useViewMode();
+  if (view === "map") return <ZvgAkteMap />;
+  return <>{children}</>;
+};
+
+const useViewMode = (): [string, (v: string) => void] => {
+  const [view, setView] = useState<string>(() => {
+    try { return localStorage.getItem("zvgakte_view") ?? "list"; } catch { return "list"; }
+  });
+  const update = (v: string) => {
+    setView(v);
+    try { localStorage.setItem("zvgakte_view", v); } catch {}
+  };
+  return [view, update];
 };
 
 
