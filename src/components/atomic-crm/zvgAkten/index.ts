@@ -26,6 +26,10 @@ export type ZvgAkte = {
   objekt_plz?: string | null;
   objekt_ort?: string | null;
   objekt_ortsteil?: string | null;
+  gemarkung?: string | null;
+  flur?: string | null;
+  flurstueck?: string | null;
+  flurstueck_groesse_qm?: number | null;
   objektart?: string | null;
   status: string;
   triage_note?: string | null;

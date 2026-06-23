@@ -119,6 +119,13 @@ const formatDate = (value?: string | null) => {
   });
 };
 
+const formatQm = (value?: number | null) =>
+  value == null
+    ? "—"
+    : `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 0 }).format(
+        Number(value),
+      )} m²`;
+
 const formatBytes = (n?: number | null) => {
   if (n == null) return "";
   if (n < 1024) return `${n} B`;
@@ -527,6 +534,30 @@ const ZvgAkteShowContent = () => {
                 ) : null}
               </div>
             </Row>
+
+            <div className="rounded-md border bg-muted/40 p-3 flex flex-col gap-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Flurstück
+              </span>
+              {record.gemarkung ||
+              record.flur ||
+              record.flurstueck ||
+              record.flurstueck_groesse_qm != null ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <Row label="Gemarkung">{record.gemarkung ?? "—"}</Row>
+                  <Row label="Flur">{record.flur ?? "—"}</Row>
+                  <Row label="Flurstück">{record.flurstueck ?? "—"}</Row>
+                  <Row label="Größe">
+                    {formatQm(record.flurstueck_groesse_qm)}
+                  </Row>
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">
+                  Noch nicht erfasst — über „Bearbeiten" eintragen.
+                </span>
+              )}
+            </div>
+
             <Row label="Objektart">{record.objektart?.trim() ?? "—"}</Row>
             <Row label="Art">{record.art ?? "—"}</Row>
             <Row label="Beschreibung">

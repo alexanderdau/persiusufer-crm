@@ -96,6 +96,27 @@ const ZvgAkteEdit = () => (
   <Edit redirect="show">
     <SimpleForm className="max-w-2xl">
       <ReadOnlyInfo />
+      <TextInput
+        source="gemarkung"
+        label="Gemarkung"
+        helperText="ALKIS-Katasterbezirk — Grundlage für spätere Geo-Ermittlung"
+      />
+      <TextInput
+        source="flur"
+        label="Flur"
+        helperText={false}
+      />
+      <TextInput
+        source="flurstueck"
+        label="Flurstück"
+        helperText="Zähler/Nenner (erstes Flurstück, falls mehrere)"
+      />
+      <NumberInput
+        source="flurstueck_groesse_qm"
+        label="Flurstücksgröße (m²)"
+        helperText="Amtliche Fläche; bei mehreren Flurstücken Summe"
+        min={0}
+      />
       <SelectInput
         source="status"
         label="Status"
