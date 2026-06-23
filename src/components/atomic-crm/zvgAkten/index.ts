@@ -68,6 +68,8 @@ export type ZvgAkte = {
   hat_gutachten_lokal?: boolean | null;
   hat_expose_lokal?: boolean | null;
   dokumente_count?: number | null;
+  fotos_count?: number | null;
+  geocoding_precision?: string | null;
 } & Pick<RaRecord, "id">;
 
 export const ZVG_STATUSES = [

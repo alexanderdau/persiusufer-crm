@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
-import { BookText, Clock, Coins, FileText, Files, Gavel, Heart, List, Mail, MailCheck, Map as MapIcon, MapPin, TrendingUp } from "lucide-react";
+import { BookText, Camera, Clock, Coins, FileText, Files, Gavel, Heart, List, Mail, MailCheck, Map as MapIcon, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -170,6 +170,26 @@ const ZvgAkteListLayout = () => {
               }}
             />
             <DataTable.Col<ZvgAkte>
+              source="fotos_count"
+              label={<span title="Anzahl extrahierter Fotos aus Gutachten/Exposé"><Camera className="size-3.5 inline-block" /></span>}
+              headerClassName="w-8"
+              cellClassName="w-8 px-1"
+              disableSort
+              render={(record) => {
+                const n = record.fotos_count ?? 0;
+                if (n === 0) return null;
+                return (
+                  <Badge
+                    variant="outline"
+                    className="bg-sky-50 text-sky-700 border-sky-300 font-semibold px-1.5 py-0 h-5 tabular-nums"
+                    title={`${n} Foto${n === 1 ? "" : "s"} aus Gutachten extrahiert`}
+                  >
+                    {n}
+                  </Badge>
+                );
+              }}
+            />
+            <DataTable.Col<ZvgAkte>
               source="dokumente_count"
               label={<span title="Anzahl Dokumente im Storage (Anordnung, Gutachten, Exposé etc.)"><Files className="size-3.5 inline-block" /></span>}
               headerClassName="w-8"
@@ -260,9 +280,46 @@ const ZvgAkteListLayout = () => {
             <DataTable.Col<ZvgAkte>
               source="objekt_ort"
               label="Ort"
-              render={(record) =>
-                record.objekt_ort ?? record.objekt_ortsteil ?? "—"
-              }
+              render={(record) => {
+                const ort = record.objekt_ort ?? record.objekt_ortsteil ?? "—";
+                const prec = record.geocoding_precision;
+                let dot: React.ReactNode = null;
+                if (prec === "house" || prec === "street") {
+                  // präzise (Straße/Hausnummer): voller Punkt mit 2 konzentrischen Kreisen
+                  dot = (
+                    <span
+                      className="inline-flex items-center justify-center mr-1.5"
+                      title={`Präzise geocodiert (${prec === "house" ? "Hausnummer" : "Straße"})`}
+                      aria-label="präzise geocodiert"
+                    >
+                      <span className="relative inline-block size-3">
+                        <span className="absolute inset-0 rounded-full border-2 border-emerald-500/60" />
+                        <span className="absolute inset-[3px] rounded-full bg-emerald-600" />
+                      </span>
+                    </span>
+                  );
+                } else if (prec === "postcode" || prec === "city") {
+                  // grob (PLZ/Stadt): ein Kreis
+                  dot = (
+                    <span
+                      className="inline-flex items-center justify-center mr-1.5"
+                      title={`Geocodiert (${prec === "postcode" ? "Postleitzahl" : "Ortsmitte"})`}
+                      aria-label="geocodiert"
+                    >
+                      <span className="inline-block size-2.5 rounded-full border-2 border-amber-500/70" />
+                    </span>
+                  );
+                } else if (prec === "none") {
+                  // kein Match
+                  dot = null;
+                }
+                return (
+                  <span className="inline-flex items-center">
+                    {dot}
+                    <span>{ort}</span>
+                  </span>
+                );
+              }}
             />
             <DataTable.Col<ZvgAkte>
               source="ag_name_raw"
