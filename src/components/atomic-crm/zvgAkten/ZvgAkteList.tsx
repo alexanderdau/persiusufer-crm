@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
-import { BookText, Camera, Clock, Coins, FileText, Files, Gavel, Heart, List, Mail, MailCheck, Map as MapIcon, MapPin, TrendingUp } from "lucide-react";
+import { BookText, Camera, Clock, Coins, FileText, Files, Gavel, Globe2, Heart, List, Mail, MailCheck, Map as MapIcon, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -279,7 +279,7 @@ const ZvgAkteListLayout = () => {
             />
             <DataTable.Col<ZvgAkte>
               source="geocoding_precision"
-              label=""
+              label={<span title="Geo-Präzision: 2 Kreise = Straße/Hausnummer, 1 Kreis = PLZ/Ortsmitte"><Globe2 className="size-3.5 inline-block" /></span>}
               headerClassName="w-6"
               cellClassName="w-6 px-0"
               disableSort
