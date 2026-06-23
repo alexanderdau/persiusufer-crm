@@ -196,55 +196,6 @@ const ZvgAkteListLayout = () => {
               }}
             />
             <DataTable.Col<ZvgAkte>
-              source="letzte_anfrage_status"
-              label=""
-              headerClassName="w-10"
-              cellClassName="w-10 px-1"
-              disableSort
-              render={(record) => {
-                const st = record.letzte_anfrage_status;
-                if (!st) return null;
-                const datum = record.letzte_anfrage_am
-                  ? new Date(record.letzte_anfrage_am).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" })
-                  : "";
-                if (st === "beantwortet") {
-                  const opt = record.letzte_anfrage_option;
-                  return (
-                    <Badge
-                      variant="outline"
-                      className="bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold px-1.5 py-0 h-5"
-                      title={`Antwort eingegangen${datum ? " am " + datum : ""}${opt ? " · Option " + opt : ""}`}
-                    >
-                      <MailCheck className="size-3" />
-                    </Badge>
-                  );
-                }
-                if (st === "gesendet") {
-                  return (
-                    <Badge
-                      variant="outline"
-                      className="bg-blue-50 text-blue-800 border-blue-300 font-semibold px-1.5 py-0 h-5"
-                      title={`Statusanfrage versendet${datum ? " am " + datum : ""}`}
-                    >
-                      <Mail className="size-3" />
-                    </Badge>
-                  );
-                }
-                if (st === "entwurf") {
-                  return (
-                    <Badge
-                      variant="outline"
-                      className="bg-zinc-50 text-zinc-600 border-zinc-300 font-semibold px-1.5 py-0 h-5"
-                      title={`Anfrage-Entwurf vorhanden${datum ? " seit " + datum : ""}`}
-                    >
-                      <Mail className="size-3 opacity-60" />
-                    </Badge>
-                  );
-                }
-                return null;
-              }}
-            />
-            <DataTable.Col<ZvgAkte>
               source="termin"
               label="Termin"
               render={(record) => formatDate(record.termin)}
@@ -286,6 +237,54 @@ const ZvgAkteListLayout = () => {
                     ?.label ?? record.status}
                 </Badge>
               )}
+            />
+            <DataTable.Col<ZvgAkte>
+              source="letzte_anfrage_status"
+              label="Anfrage"
+              headerClassName="w-20"
+              cellClassName="w-20 px-1"
+              disableSort
+              render={(record) => {
+                const st = record.letzte_anfrage_status;
+                // Keine Anfrage angelegt → keine Pille
+                if (!st || st === "entwurf") return null;
+                const versendet = st === "gesendet" || st === "beantwortet";
+                const beantwortet = st === "beantwortet";
+                const datum = record.letzte_anfrage_am
+                  ? new Date(record.letzte_anfrage_am).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "2-digit" })
+                  : "";
+                const opt = record.letzte_anfrage_option;
+                const titleParts: string[] = [];
+                titleParts.push(versendet ? `Anfrage versendet${datum ? " am " + datum : ""}` : "Anfrage nicht versendet");
+                titleParts.push(beantwortet ? `Antwort eingegangen${opt ? " · Option " + opt : ""}` : "Keine Antwort");
+                return (
+                  <span
+                    className="inline-flex h-5 overflow-hidden rounded-full border text-[10px] font-semibold tabular-nums"
+                    title={titleParts.join(" · ")}
+                  >
+                    <span
+                      className={
+                        "flex items-center px-1.5 " +
+                        (versendet
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-rose-100 text-rose-800")
+                      }
+                    >
+                      <Mail className="size-3" />
+                    </span>
+                    <span
+                      className={
+                        "flex items-center px-1.5 border-l " +
+                        (beantwortet
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-rose-100 text-rose-800")
+                      }
+                    >
+                      <MailCheck className="size-3" />
+                    </span>
+                  </span>
+                );
+              }}
             />
           </DataTable>
         </Card>

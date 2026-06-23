@@ -12,7 +12,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <>
       <Header />
-      <main className="max-w-screen-xl mx-auto pt-4 px-4" id="main-content">
+      <main className="w-full pt-4 px-3" id="main-content">
         <ErrorBoundary FallbackComponent={Error}>
           <Suspense fallback={<Skeleton className="h-12 w-12 rounded-full" />}>
             {children}
