@@ -567,7 +567,7 @@ const ZvgAkteListFilter = () => {
 
       <FilterCategory label="Bundesland" icon={<MapPin />}>
         {[...states]
-          .sort((a, b) => (blCounts[b.id] ?? 0) - (blCounts[a.id] ?? 0))
+          .sort((a, b) => a.name.localeCompare(b.name, "de"))
           .filter((s) => (blCounts[s.id] ?? 0) > 0 || filterValues?.state_abbr === s.id)
           .map((s) => {
             const n = blCounts[s.id] ?? 0;
