@@ -28,6 +28,10 @@ const Header = () => {
     currentPath = "/zvg_akte";
   } else if (matchPath("/kleinanzeigen_grundstueck/*", location.pathname)) {
     currentPath = "/kleinanzeigen_grundstueck";
+  } else if (matchPath("/admin/*", location.pathname) || matchPath("/admin", location.pathname)) {
+    currentPath = "/admin";
+  } else if (matchPath("/zvg_anfrage/*", location.pathname)) {
+    currentPath = "/zvg_anfrage";
   } else {
     currentPath = false;
   }
@@ -104,7 +108,7 @@ const Header = () => {
                   <NavigationTab
                     label="Admin"
                     to="/admin"
-                    isActive={currentPath.startsWith("/admin")}
+                    isActive={typeof currentPath === "string" && currentPath.startsWith("/admin")}
                   />
                 </nav>
               </div>
