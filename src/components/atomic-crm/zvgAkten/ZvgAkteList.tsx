@@ -280,8 +280,8 @@ const ZvgAkteListLayout = () => {
             <DataTable.Col<ZvgAkte>
               source="geocoding_precision"
               label={<span title="Geo-Präzision: 2 Kreise = Straße/Hausnummer, 1 Kreis = PLZ/Ortsmitte"><Globe2 className="size-3.5 inline-block" /></span>}
-              headerClassName="w-6"
-              cellClassName="w-6 px-0"
+              headerClassName="w-6 text-center"
+              cellClassName="w-6 px-0 text-center"
               disableSort
               render={(record) => {
                 const prec = record.geocoding_precision;
