@@ -278,17 +278,17 @@ const ZvgAkteListLayout = () => {
               )}
             />
             <DataTable.Col<ZvgAkte>
-              source="objekt_ort"
-              label="Ort"
+              source="geocoding_precision"
+              label=""
+              headerClassName="w-6"
+              cellClassName="w-6 px-0"
+              disableSort
               render={(record) => {
-                const ort = record.objekt_ort ?? record.objekt_ortsteil ?? "—";
                 const prec = record.geocoding_precision;
-                let dot: React.ReactNode = null;
                 if (prec === "house" || prec === "street") {
-                  // präzise (Straße/Hausnummer): voller Punkt mit 2 konzentrischen Kreisen
-                  dot = (
+                  return (
                     <span
-                      className="inline-flex items-center justify-center mr-1.5"
+                      className="inline-flex items-center justify-center"
                       title={`Präzise geocodiert (${prec === "house" ? "Hausnummer" : "Straße"})`}
                       aria-label="präzise geocodiert"
                     >
@@ -298,28 +298,25 @@ const ZvgAkteListLayout = () => {
                       </span>
                     </span>
                   );
-                } else if (prec === "postcode" || prec === "city") {
-                  // grob (PLZ/Stadt): ein Kreis
-                  dot = (
+                }
+                if (prec === "postcode" || prec === "city") {
+                  return (
                     <span
-                      className="inline-flex items-center justify-center mr-1.5"
+                      className="inline-flex items-center justify-center"
                       title={`Geocodiert (${prec === "postcode" ? "Postleitzahl" : "Ortsmitte"})`}
                       aria-label="geocodiert"
                     >
                       <span className="inline-block size-2.5 rounded-full border-2 border-amber-500/70" />
                     </span>
                   );
-                } else if (prec === "none") {
-                  // kein Match
-                  dot = null;
                 }
-                return (
-                  <span className="inline-flex items-center">
-                    {dot}
-                    <span>{ort}</span>
-                  </span>
-                );
+                return null;
               }}
+            />
+            <DataTable.Col<ZvgAkte>
+              source="objekt_ort"
+              label="Ort"
+              render={(record) => record.objekt_ort ?? record.objekt_ortsteil ?? "—"}
             />
             <DataTable.Col<ZvgAkte>
               source="ag_name_raw"
