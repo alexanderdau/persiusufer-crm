@@ -177,14 +177,17 @@ const sendBatch = async (zids: string[]) => {
  * Wird neben „Exportieren" angezeigt.
  */
 export const BatchAnfrageButton = () => {
-  const { data, filterValues, total } = useListContext<ZvgAkte>();
+  const { data, filterValues, selectedIds, total } = useListContext<ZvgAkte>();
   const notify = useNotify();
   const refresh = useRefresh();
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<BatchResult | null>(null);
 
-  const akten = data ?? [];
+  const all = data ?? [];
+  const selektiert = selectedIds && selectedIds.length > 0;
+  // Wenn Selektion existiert: nur diese. Sonst: alle der gefilterten Seite.
+  const akten = selektiert ? all.filter((a) => selectedIds!.includes(a.id)) : all;
   const { candidates, aufgehoben, bereits, keinAg } = partition(akten);
   const hasFilter = filterValues && Object.keys(filterValues).length > 0;
 
@@ -221,11 +224,13 @@ export const BatchAnfrageButton = () => {
         title={
           akten.length === 0
             ? "Keine Akten in der aktuellen Ansicht"
-            : `Statusanfragen für ${candidates.length} Akte(n) der aktuellen Seite versenden`
+            : selektiert
+              ? `Statusanfragen für ${candidates.length} selektierte Akte(n) versenden`
+              : `Statusanfragen für ${candidates.length} Akte(n) der aktuellen Seite versenden`
         }
       >
         <Send className="size-4 mr-2" />
-        Statusanfragen Seite ({candidates.length})
+        {selektiert ? `Statusanfragen Auswahl (${candidates.length})` : `Statusanfragen Seite (${candidates.length})`}
       </Button>
       <ConfirmDialog
         open={open}
@@ -235,9 +240,11 @@ export const BatchAnfrageButton = () => {
         bereits={bereits}
         keinAg={keinAg}
         hint={
-          hasFilter
-            ? `Aktueller Filter ergibt ${akten.length} Akte(n)${total && total !== akten.length ? ` (von ${total} insgesamt; nur die ersten ${akten.length} der aktuellen Seite)` : ""}.`
-            : `Aktuelle Seite enthält ${akten.length} Akte(n).`
+          selektiert
+            ? `${akten.length} selektierte Akte(n).`
+            : hasFilter
+              ? `Aktueller Filter ergibt ${akten.length} Akte(n)${total && total !== akten.length ? ` (von ${total} insgesamt; nur die ersten ${akten.length} der aktuellen Seite)` : ""}.`
+              : `Aktuelle Seite enthält ${akten.length} Akte(n).`
         }
         onConfirm={onConfirm}
         running={running}
