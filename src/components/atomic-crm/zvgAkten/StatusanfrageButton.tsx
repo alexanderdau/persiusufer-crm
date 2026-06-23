@@ -33,35 +33,47 @@ const buildAnrede = (rp: Rp | null) => {
 };
 
 const buildBody = (az: string, anrede: string, rpKnown: boolean) => {
-  const opt =
-    "[ ] (1) Versteigerungstermin steht noch aus.\n" +
-    "        Neuer Termin: ____________ , Saal ____ , Uhrzeit ____\n\n" +
-    "[ ] (2) Versteigerungstermin am ___________ hat stattgefunden;\n" +
-    "        Zuschlag wurde im Termin verkündet.\n\n" +
-    "[ ] (3) Versteigerungstermin am ___________ hat stattgefunden;\n" +
-    "        Verkündungstermin nach § 87 II ZVG bestimmt auf\n" +
-    "        ____________ , Saal ____ , Uhrzeit ____\n\n" +
-    "[ ] (4) Zuschlag wurde versagt (§§ 83 / 85 / 85a ZVG).\n" +
-    "        Folgetermin: ____________ (sofern bereits bestimmt)\n\n" +
-    "[ ] (5) Verfahren ist eingestellt / aufgehoben\n" +
-    "        (z. B. nach §§ 28, 30, 31 ZVG).\n\n" +
-    "[ ] (6) Verteilungstermin (nicht-öffentlich) ist bestimmt\n" +
-    "        auf ___________ .\n\n" +
-    "[ ] (7) Sonstiger Verfahrensstand:\n" +
-    "        _________________________________________________________";
   const einleitung = rpKnown
-    ? "da Sie das o. g. Zwangsversteigerungsverfahren als Rechtspfleger:in leiten, wende ich mich mit der Bitte um eine kurze Statusauskunft direkt an Sie."
-    : "ich bitte zu dem o. g. Zwangsversteigerungsverfahren um eine kurze Statusauskunft.";
+    ? "da Sie das o. g. Zwangsversteigerungsverfahren als Rechtspfleger:in leiten,"
+    : "";
   return `${anrede},
 
-${einleitung} Den nächsten öffentlichen Termin nach §§ 87, 169 GVG machen Sie ohnehin durch Anheftung an die Gerichtstafel bekannt — mir würde die nachfolgende Auswahl Ihrerseits voll genügen. Eine formfreie Mailantwort mit angekreuzter Option ist ausreichend.
+${einleitung} ich bitte um eine kurze Statusauskunft zum Aktenzeichen ${az}.
 
-Aktenzeichen: ${az}
+Mir ist bewusst, dass eine Auskunft über den vollständigen Verfahrensstand nach § 42 ZVG den Verfahrensbeteiligten vorbehalten ist. Mein Anliegen beschränkt sich daher in Teil A auf die ohnehin öffentliche Termin-Bekanntmachung nach §§ 87 II 2 ZVG, 169 GVG, die Sie durch Anheftung an die Gerichtstafel publik machen.
 
-Bitte zutreffende Option auswählen:
 
-${opt}
+Teil A — Öffentliche Termin-Information (§§ 87 II 2 ZVG, 169 GVG)
 
+[ ] (1) Versteigerungstermin steht noch aus.
+        Neuer Termin: ____________ , Saal ____ , Uhrzeit ____
+
+[ ] (2) Versteigerungstermin ist aufgehoben.
+        Folge-/Neuer Termin (sofern bekannt): ____________
+
+[ ] (3) Versteigerungstermin hat stattgefunden;
+        Verkündungstermin nach § 87 II ZVG bestimmt auf
+        ____________ , Saal ____ , Uhrzeit ____
+
+[ ] (4) Verfahren ist insgesamt aufgehoben / eingestellt
+        (z. B. nach §§ 28, 30, 31 ZVG).
+
+
+Teil B — Verfahrensstand (nur falls in Ihrem Ermessen mitteilbar)
+
+[ ] (5) Versteigerungstermin hat stattgefunden;
+        Zuschlag wurde im Termin verkündet.
+
+[ ] (6) Zuschlag wurde versagt (§§ 83 / 85 / 85a ZVG).
+        Folgetermin: ____________ (sofern bereits bestimmt)
+
+[ ] (7) Verteilungstermin (nicht-öffentlich) ist bestimmt
+        auf ___________ .
+
+[ ] (8) Sonstiger Verfahrensstand:
+        _________________________________________________________
+
+Eine formfreie Antwort mit angekreuzter Option ist ausreichend.
 Vielen Dank für Ihre kurze Rückmeldung.
 
 Mit freundlichen Grüßen
