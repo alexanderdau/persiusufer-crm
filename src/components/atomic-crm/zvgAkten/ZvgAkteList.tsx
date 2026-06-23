@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
-import { Clock, FileText, Heart, Mail, MailCheck, MapPin, TrendingUp } from "lucide-react";
+import { Clock, Coins, FileText, Heart, Mail, MailCheck, MapPin, TrendingUp } from "lucide-react";
 import { addDays } from "date-fns";
 
 import { DataTable } from "@/components/admin/data-table";
@@ -413,6 +413,110 @@ const StatusTriToggle = ({ statusValue, label, isMobile }: { statusValue: string
   );
 };
 
+const VkwFilter = () => {
+  const { filterValues, setFilters } = useListContext();
+  const filters = (filterValues ?? {}) as Record<string, unknown>;
+  const vonRaw = typeof filters["vkw_eur@gte"] === "number" ? String(filters["vkw_eur@gte"]) : (filters["vkw_eur@gte"] as string | undefined) ?? "";
+  const bisRaw = typeof filters["vkw_eur@lte"] === "number" ? String(filters["vkw_eur@lte"]) : (filters["vkw_eur@lte"] as string | undefined) ?? "";
+  const onlyKa = filters["vkw_unbekannt"] === true;
+  const excludeKa = filters["vkw_unbekannt"] === false;
+
+  const setRange = (newVon: string, newBis: string) => {
+    const nf: Record<string, unknown> = { ...filters };
+    delete nf["vkw_eur@gte"];
+    delete nf["vkw_eur@lte"];
+    if (newVon && !isNaN(Number(newVon))) nf["vkw_eur@gte"] = Number(newVon);
+    if (newBis && !isNaN(Number(newBis))) nf["vkw_eur@lte"] = Number(newBis);
+    setFilters(nf, {}, false);
+  };
+
+  const cycleKa = () => {
+    const nf: Record<string, unknown> = { ...filters };
+    if (!onlyKa && !excludeKa) {
+      nf["vkw_unbekannt"] = true;       // nur k. A.
+      delete nf["vkw_eur@gte"];
+      delete nf["vkw_eur@lte"];
+    } else if (onlyKa) {
+      nf["vkw_unbekannt"] = false;      // alles AUSSER k. A.
+    } else {
+      delete nf["vkw_unbekannt"];       // aus
+    }
+    setFilters(nf, {}, false);
+  };
+
+  const reset = () => {
+    const nf: Record<string, unknown> = { ...filters };
+    delete nf["vkw_eur@gte"];
+    delete nf["vkw_eur@lte"];
+    delete nf["vkw_unbekannt"];
+    setFilters(nf, {}, false);
+  };
+
+  const aktiv = vonRaw || bisRaw || onlyKa || excludeKa;
+  const kaCls = onlyKa
+    ? "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100"
+    : excludeKa
+      ? "bg-rose-50 text-rose-900 border-rose-300 hover:bg-rose-100"
+      : "bg-transparent border-transparent hover:bg-muted text-foreground";
+
+  return (
+    <div className="flex flex-col gap-2 px-1 pt-1">
+      <label className="text-xs text-muted-foreground flex flex-col gap-1">
+        Von (EUR)
+        <input
+          type="number"
+          inputMode="numeric"
+          step={1000}
+          min={0}
+          value={vonRaw}
+          onChange={(e) => setRange(e.target.value, bisRaw)}
+          disabled={onlyKa}
+          placeholder="z. B. 50000"
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background tabular-nums disabled:opacity-50"
+        />
+      </label>
+      <label className="text-xs text-muted-foreground flex flex-col gap-1">
+        Bis (EUR)
+        <input
+          type="number"
+          inputMode="numeric"
+          step={1000}
+          min={0}
+          value={bisRaw}
+          onChange={(e) => setRange(vonRaw, e.target.value)}
+          disabled={onlyKa}
+          placeholder="z. B. 250000"
+          className="border border-input rounded-md px-2 py-1 text-sm bg-background tabular-nums disabled:opacity-50"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={cycleKa}
+        className={"w-full flex items-center justify-between rounded-md border px-3 h-8 text-sm transition-colors " + kaCls}
+        title={
+          onlyKa
+            ? "Filter: nur Akten ohne ermittelten VKW (Klick: ausschließen)"
+            : excludeKa
+              ? "Filter: alles außer k. A. (Klick: aufheben)"
+              : "Klick: nur Akten ohne ermittelten VKW anzeigen"
+        }
+      >
+        <span>{excludeKa ? "≠ k. A." : "k. A."}</span>
+        <span className="text-xs opacity-70">{onlyKa ? "✓" : excludeKa ? "✕" : ""}</span>
+      </button>
+      {aktiv && (
+        <button
+          type="button"
+          onClick={reset}
+          className="text-xs text-muted-foreground hover:text-foreground self-start underline"
+        >
+          Zurücksetzen
+        </button>
+      )}
+    </div>
+  );
+};
+
 const TerminDatumPicker = () => {
   const { filterValues, setFilters } = useListContext();
   const filters = (filterValues ?? {}) as Record<string, unknown>;
@@ -565,6 +669,10 @@ const ZvgAkteListFilter = () => {
             isMobile={isMobile}
           />
         ))}
+      </FilterCategory>
+
+      <FilterCategory label="Verkehrswert" icon={<Coins />}>
+        <VkwFilter />
       </FilterCategory>
 
       <FilterCategory label="Termin" icon={<Clock />}>
