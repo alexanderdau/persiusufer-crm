@@ -15,7 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { ZVG_STATUSES, type ZvgAkte } from "./index";
 import { useFavoriten } from "./useFavoriten";
-import { BatchAnfrageButton } from "./BatchAnfrageButton";
+import { BatchAnfrageButton, BulkBatchAnfrageButton } from "./BatchAnfrageButton";
 import { states } from "../companies/states";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
@@ -91,7 +91,7 @@ const ZvgAkteListLayout = () => {
           <BatchAnfrageButton />
         </div>
         <Card className="py-0">
-          <DataTable<ZvgAkte> rowClick="show" bulkActionButtons={false}>
+          <DataTable<ZvgAkte> rowClick="show" bulkActionButtons={<BulkBatchAnfrageButton />}>
             <DataTable.Col<ZvgAkte>
               label=""
               headerClassName="w-8"
