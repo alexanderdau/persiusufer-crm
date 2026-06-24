@@ -1,6 +1,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useListContext, Link as RaLink } from "ra-core";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  GeoJSON,
+  useMap,
+} from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -100,6 +107,37 @@ export const ZvgAkteMap = () => {
     [filterValues],
   );
 
+  // Bundesland-Umriss: nur wenn genau ein Bundesland im Filter gewählt ist.
+  const selectedState =
+    typeof filterValues?.state_abbr === "string"
+      ? filterValues.state_abbr
+      : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [stateOutline, setStateOutline] = useState<any | null>(null);
+  useEffect(() => {
+    if (!selectedState) {
+      setStateOutline(null);
+      return;
+    }
+    let cancelled = false;
+    fetch("/geo/bundeslaender.geo.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((fc) => {
+        if (cancelled || !fc?.features) return;
+        const feat = fc.features.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (f: any) => f.properties?.id === `DE-${selectedState}`,
+        );
+        setStateOutline(feat ?? null);
+      })
+      .catch(() => {
+        /* Umriss ist optional – Fehler ignorieren */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedState]);
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -193,6 +231,13 @@ export const ZvgAkteMap = () => {
         />
         <FitToMarkers akten={akten} />
         <InvalidateOnResize height={height} />
+        {stateOutline ? (
+          <GeoJSON
+            key={selectedState}
+            data={stateOutline}
+            style={() => ({ color: "#1d4ed8", weight: 2, fill: false })}
+          />
+        ) : null}
         {akten.map((a) => {
           const lat = Number(a.objekt_lat);
           const lon = Number(a.objekt_lon);
