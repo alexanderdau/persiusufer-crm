@@ -226,6 +226,7 @@ const publicUrlB = (bucket: string, path: string) =>
   `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
 
 const KIND_LABELS: Record<string, string> = {
+  foto: "Foto",
   luftbild: "Luftbild",
   foto_aussen: "Außenansicht",
   foto_innen: "Innenansicht",
@@ -234,6 +235,7 @@ const KIND_LABELS: Record<string, string> = {
   sonstiges: "Sonstiges",
 };
 const KIND_ORDER = [
+  "foto",
   "luftbild",
   "foto_aussen",
   "foto_innen",
@@ -243,7 +245,7 @@ const KIND_ORDER = [
 ];
 
 type BildRow = {
-  id: number;
+  id: number | string;
   storage_path: string;
   bucket: string;
   kind: string | null;
@@ -275,8 +277,21 @@ const BildGalerie = ({
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
   const rows = data ?? [];
+  // zvg.com-/Listing-Bilder (in bilder_paths, aber nicht in zvg_akte_bild) als
+  // "foto" mit aufnehmen, damit sie identisch in Galerie + Lightbox erscheinen.
+  const known = new Set(rows.map((r) => r.storage_path));
+  const extra: BildRow[] = fallbackPaths
+    .filter((p) => p && !known.has(p))
+    .map((p, i) => ({
+      id: `zvg-${i}`,
+      storage_path: p,
+      bucket: BILDER_BUCKET,
+      kind: "foto",
+    }));
+  const allRows = [...extra, ...rows];
+
   const groups: Record<string, BildRow[]> = {};
-  for (const r of rows) {
+  for (const r of allRows) {
     const k = r.kind || "sonstiges";
     (groups[k] ??= []).push(r);
   }
@@ -306,12 +321,7 @@ const BildGalerie = ({
   }, [openIdx, flat.length]);
 
   if (isPending) return null;
-  // Fallback auf cover/bilder_paths (z. B. zvg.com-Bilder ohne kind)
-  if (!rows.length) {
-    return fallbackPaths.length ? (
-      <BilderSlider paths={fallbackPaths} alt={alt} />
-    ) : null;
-  }
+  if (!allRows.length) return null;
 
   const cur = openIdx != null ? flat[openIdx] : null;
   const step = (d: number) =>
