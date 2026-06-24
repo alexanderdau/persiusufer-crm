@@ -15,6 +15,28 @@ window.addEventListener("vite:preloadError", () => {
   }
 });
 
+// Service-Worker-Auto-Update: vite-plugin-pwa läuft im autoUpdate-Modus, der
+// einen neuen SW nach einem Deploy via skipWaiting/clientsClaim sofort aktiviert.
+// Die bereits geladene Seite läuft aber mit dem ALTEN Bundle weiter, bis man
+// neu lädt — deshalb hier ein einmaliger Auto-Reload, sobald der neue SW die
+// Kontrolle übernimmt. Zusätzlich ein periodischer Update-Check, damit auch
+// offene Tabs einen Deploy von selbst (binnen ~1 Min) einspielen.
+if ("serviceWorker" in navigator) {
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.ready
+    .then((reg) => {
+      setInterval(() => {
+        reg.update().catch(() => {});
+      }, 60_000);
+    })
+    .catch(() => {});
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
