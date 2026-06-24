@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useListContext, Link as RaLink } from "ra-core";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -12,7 +12,8 @@ import type { ZvgAkte } from "./index";
 // Default-Marker-Icons aus dem leaflet-Package-CDN
 const defaultIcon = L.icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
   iconSize: [25, 41],
   iconAnchor: [12, 41],
@@ -24,23 +25,49 @@ const formatEur = (value?: number | null): string => {
   if (value == null) return "—";
   const n = Number(value);
   if (n <= 1) return "k. A.";
-  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+  }).format(n);
 };
 
 const formatDate = (value?: string | null) => {
   if (!value) return "—";
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : d.toLocaleDateString("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
 };
 
 const FitToMarkers = ({ akten }: { akten: ZvgAkte[] }) => {
   const map = useMap();
   useEffect(() => {
-    const valid = akten.filter((a) => a.objekt_lat != null && a.objekt_lon != null);
+    const valid = akten.filter(
+      (a) => a.objekt_lat != null && a.objekt_lon != null,
+    );
     if (valid.length === 0) return;
-    const bounds = L.latLngBounds(valid.map((a) => [Number(a.objekt_lat), Number(a.objekt_lon)] as [number, number]));
+    const bounds = L.latLngBounds(
+      valid.map(
+        (a) => [Number(a.objekt_lat), Number(a.objekt_lon)] as [number, number],
+      ),
+    );
     map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
   }, [akten, map]);
+  return null;
+};
+
+// Leaflet muss nach jeder Container-Größenänderung neu vermessen werden,
+// sonst bleiben Kacheln grau / falsch positioniert.
+const InvalidateOnResize = ({ height }: { height: number }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.invalidateSize();
+  }, [height, map]);
   return null;
 };
 
@@ -55,14 +82,34 @@ export const ZvgAkteMap = () => {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
-  const filterSig = useMemo(() => JSON.stringify(filterValues ?? {}), [filterValues]);
+  // Karte füllt die Höhe vom eigenen oberen Rand bis zum unteren Viewport-Rand.
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number>(700);
+  useLayoutEffect(() => {
+    const update = () => {
+      const top = containerRef.current?.getBoundingClientRect().top ?? 0;
+      setHeight(Math.max(400, window.innerHeight - top - 16));
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [loading, akten.length]);
+
+  const filterSig = useMemo(
+    () => JSON.stringify(filterValues ?? {}),
+    [filterValues],
+  );
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     const sb = getSupabaseClient();
-    let q = sb.from("zvg_akte")
-      .select("zid, az, ag_name_raw, objektart, objekt_strasse, objekt_plz, objekt_ort, objekt_lat, objekt_lon, termin, vkw_eur, status, letzte_anfrage_status", { count: "exact" })
+    let q = sb
+      .from("zvg_akte")
+      .select(
+        "zid, az, ag_name_raw, objektart, objekt_strasse, objekt_plz, objekt_ort, objekt_lat, objekt_lon, termin, vkw_eur, status, letzte_anfrage_status",
+        { count: "exact" },
+      )
       .not("objekt_lat", "is", null)
       .not("objekt_lon", "is", null)
       .gt("objekt_lat", -1)
@@ -87,12 +134,18 @@ export const ZvgAkteMap = () => {
       setTotal(count ?? 0);
       setLoading(false);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [filterSig]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[600px] bg-muted/20 rounded-md border">
+      <div
+        ref={containerRef}
+        style={{ height }}
+        className="flex items-center justify-center bg-muted/20 rounded-md border"
+      >
         <span className="text-sm text-muted-foreground">Lade Karte …</span>
       </div>
     );
@@ -103,24 +156,43 @@ export const ZvgAkteMap = () => {
 
   if (akten.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-[600px] bg-muted/20 rounded-md border gap-2">
-        <span className="text-sm text-muted-foreground">Keine Akten mit Geo-Koordinaten im aktuellen Filter</span>
-        <span className="text-xs text-muted-foreground">Geocoding läuft im Hintergrund — schau in ein paar Minuten wieder vorbei.</span>
+      <div
+        ref={containerRef}
+        style={{ height }}
+        className="flex flex-col items-center justify-center bg-muted/20 rounded-md border gap-2"
+      >
+        <span className="text-sm text-muted-foreground">
+          Keine Akten mit Geo-Koordinaten im aktuellen Filter
+        </span>
+        <span className="text-xs text-muted-foreground">
+          Geocoding läuft im Hintergrund — schau in ein paar Minuten wieder
+          vorbei.
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="relative h-[700px] rounded-md border overflow-hidden">
+    <div
+      ref={containerRef}
+      style={{ height }}
+      className="relative rounded-md border overflow-hidden"
+    >
       <div className="absolute top-2 right-2 z-[400] bg-white/90 backdrop-blur-sm rounded px-2 py-1 text-xs border shadow-sm">
         {akten.length} Marker
       </div>
-      <MapContainer center={center} zoom={8} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
+      <MapContainer
+        center={center}
+        zoom={8}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom
+      >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitToMarkers akten={akten} />
+        <InvalidateOnResize height={height} />
         {akten.map((a) => {
           const lat = Number(a.objekt_lat);
           const lon = Number(a.objekt_lon);
@@ -130,7 +202,9 @@ export const ZvgAkteMap = () => {
               <Popup>
                 <div className="text-sm">
                   <div className="font-semibold">{a.az}</div>
-                  <div className="text-muted-foreground text-xs mb-1">{a.ag_name_raw}</div>
+                  <div className="text-muted-foreground text-xs mb-1">
+                    {a.ag_name_raw}
+                  </div>
                   <div className="mb-1">{a.objektart}</div>
                   <div className="text-xs text-muted-foreground mb-1">
                     {a.objekt_strasse} · {a.objekt_plz} {a.objekt_ort}
@@ -139,7 +213,10 @@ export const ZvgAkteMap = () => {
                     <span className="text-xs">{formatDate(a.termin)}</span>
                     <span className="text-xs">{formatEur(a.vkw_eur)}</span>
                   </div>
-                  <a href={`#/zvg_akte/${a.zid}/show`} className="text-xs underline">
+                  <a
+                    href={`#/zvg_akte/${a.zid}/show`}
+                    className="text-xs underline"
+                  >
                     Details öffnen →
                   </a>
                 </div>
