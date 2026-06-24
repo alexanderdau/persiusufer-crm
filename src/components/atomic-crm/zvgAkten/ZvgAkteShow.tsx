@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useListContext, useNotify, useRecordContext } from "ra-core";
+import {
+  useGetManyReference,
+  useListContext,
+  useNotify,
+  useRecordContext,
+} from "ra-core";
 import {
   Bell,
   BellRing,
@@ -56,7 +61,8 @@ type Dokument = {
 const ContactNameDisplay = () => {
   const r = useRecordContext<any>();
   if (!r) return <span>—</span>;
-  const anrede = r.gender === "female" ? "Frau" : r.gender === "male" ? "Herr" : "";
+  const anrede =
+    r.gender === "female" ? "Frau" : r.gender === "male" ? "Herr" : "";
   const name = [r.first_name, r.last_name].filter(Boolean).join(" ").trim();
   const label = [anrede, name].filter(Boolean).join(" ") || r.title || "—";
   return (
@@ -195,7 +201,9 @@ const BilderSlider = ({ paths, alt }: { paths: string[]; alt: string }) => {
               onClick={() => setIdx(i)}
               aria-label={`Bild ${i + 1}`}
               className={`shrink-0 w-20 h-14 rounded border overflow-hidden ${
-                i === idx ? "ring-2 ring-primary" : "opacity-70 hover:opacity-100"
+                i === idx
+                  ? "ring-2 ring-primary"
+                  : "opacity-70 hover:opacity-100"
               }`}
             >
               <img
@@ -208,6 +216,99 @@ const BilderSlider = ({ paths, alt }: { paths: string[]; alt: string }) => {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+};
+
+// --- Getypte Bild-Galerie (Fotos / Grundriss / Flurkarte …) -----------------
+
+const publicUrlB = (bucket: string, path: string) =>
+  `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
+
+const KIND_LABELS: Record<string, string> = {
+  foto_aussen: "Außenansicht",
+  foto_innen: "Innenansicht",
+  grundriss: "Grundriss",
+  lageplan_flurkarte: "Lageplan / Flurkarte",
+  sonstiges: "Sonstiges",
+};
+const KIND_ORDER = [
+  "foto_aussen",
+  "foto_innen",
+  "grundriss",
+  "lageplan_flurkarte",
+  "sonstiges",
+];
+
+type BildRow = {
+  id: number;
+  storage_path: string;
+  bucket: string;
+  kind: string | null;
+};
+
+const BildGalerie = ({
+  zid,
+  fallbackPaths,
+  alt,
+}: {
+  zid: string;
+  fallbackPaths: string[];
+  alt: string;
+}) => {
+  const { data, isPending } = useGetManyReference<BildRow>("zvg_akte_bild", {
+    target: "zid",
+    id: zid,
+    pagination: { page: 1, perPage: 100 },
+    sort: { field: "image_index", order: "ASC" },
+  });
+
+  if (isPending) return null;
+  const rows = data ?? [];
+  // Fallback auf cover/bilder_paths (z. B. zvg.com-Bilder ohne kind)
+  if (!rows.length) {
+    return fallbackPaths.length ? (
+      <BilderSlider paths={fallbackPaths} alt={alt} />
+    ) : null;
+  }
+
+  const groups: Record<string, BildRow[]> = {};
+  for (const r of rows) {
+    const k = r.kind || "sonstiges";
+    (groups[k] ??= []).push(r);
+  }
+  const kinds = Object.keys(groups).sort(
+    (a, b) =>
+      (KIND_ORDER.indexOf(a) + 1 || 99) - (KIND_ORDER.indexOf(b) + 1 || 99),
+  );
+
+  return (
+    <div className="flex flex-col gap-3">
+      {kinds.map((k) => (
+        <div key={k} className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {KIND_LABELS[k] ?? k} ({groups[k].length})
+          </span>
+          <div className="flex flex-row gap-2 overflow-x-auto pb-1">
+            {groups[k].map((r) => (
+              <a
+                key={r.id}
+                href={publicUrlB(r.bucket, r.storage_path)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0"
+              >
+                <img
+                  src={publicUrlB(r.bucket, r.storage_path)}
+                  alt={alt}
+                  loading="lazy"
+                  className="h-32 w-auto rounded-md border object-cover hover:opacity-90 transition-opacity"
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -259,9 +360,7 @@ const DokumenteListe = () => {
   }
   if (!data?.length) {
     return (
-      <div className="text-sm text-muted-foreground">
-        Noch keine Dokumente.
-      </div>
+      <div className="text-sm text-muted-foreground">Noch keine Dokumente.</div>
     );
   }
 
@@ -282,7 +381,9 @@ const DokumenteListe = () => {
                   {ART_LABELS[d.art] ?? d.art}
                 </Badge>
                 {d.source ? <span>· Quelle: {d.source}</span> : null}
-                {d.size_bytes ? <span>· {formatBytes(d.size_bytes)}</span> : null}
+                {d.size_bytes ? (
+                  <span>· {formatBytes(d.size_bytes)}</span>
+                ) : null}
                 {d.hochgeladen_am ? (
                   <span>· {formatDate(d.hochgeladen_am)}</span>
                 ) : null}
@@ -439,7 +540,9 @@ const ZvgAkteShowContent = () => {
   const addrSummary =
     record.objekt_anschrift ||
     [
-      [record.objekt_strasse, record.objekt_hausnummer].filter(Boolean).join(" "),
+      [record.objekt_strasse, record.objekt_hausnummer]
+        .filter(Boolean)
+        .join(" "),
       [record.objekt_plz, record.objekt_ort].filter(Boolean).join(" "),
       record.objekt_ortsteil,
     ]
@@ -472,12 +575,11 @@ const ZvgAkteShowContent = () => {
         </div>
       </div>
 
-      {allBilderPaths.length ? (
-        <BilderSlider
-          paths={allBilderPaths}
-          alt={record.obj_titel ?? record.az}
-        />
-      ) : null}
+      <BildGalerie
+        zid={record.zid}
+        fallbackPaths={allBilderPaths}
+        alt={record.obj_titel ?? record.az}
+      />
 
       <div className="flex flex-row gap-2 flex-wrap">
         <Button asChild variant="outline" size="sm">
@@ -642,55 +744,90 @@ const ZvgAkteShowContent = () => {
                   <div className="flex flex-col gap-1">
                     {record.geringstes_gebot_eur != null ? (
                       <>
-                        <span className="font-medium">{formatEur(record.geringstes_gebot_eur)}</span>
+                        <span className="font-medium">
+                          {formatEur(record.geringstes_gebot_eur)}
+                        </span>
                         {record.geringstes_gebot_rang_betreibend ? (
                           <span className="text-xs text-muted-foreground">
-                            Betrieben aus Rang {record.geringstes_gebot_rang_betreibend} · Quelle: {q}
+                            Betrieben aus Rang{" "}
+                            {record.geringstes_gebot_rang_betreibend} · Quelle:{" "}
+                            {q}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Quelle: {q}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Quelle: {q}
+                          </span>
                         )}
                       </>
                     ) : q === "failed" ? (
-                      <span className="text-sm text-red-700">Haiku-Job fehlgeschlagen</span>
+                      <span className="text-sm text-red-700">
+                        Haiku-Job fehlgeschlagen
+                      </span>
                     ) : (
                       <span className="text-sm text-amber-700">
                         Analysiert — aber kein eindeutiger Wert ableitbar
-                        {record.geringstes_gebot_rang_betreibend ? ` (Rang ${record.geringstes_gebot_rang_betreibend})` : ""}
-                        <span className="ml-1 text-muted-foreground">· Quelle: {q}</span>
+                        {record.geringstes_gebot_rang_betreibend
+                          ? ` (Rang ${record.geringstes_gebot_rang_betreibend})`
+                          : ""}
+                        <span className="ml-1 text-muted-foreground">
+                          · Quelle: {q}
+                        </span>
                       </span>
                     )}
                     {record.geringstes_gebot_warnung ? (
-                      <span className="text-xs text-amber-700 whitespace-pre-line">⚠ {record.geringstes_gebot_warnung}</span>
+                      <span className="text-xs text-amber-700 whitespace-pre-line">
+                        ⚠ {record.geringstes_gebot_warnung}
+                      </span>
                     ) : null}
                     {record.geringstes_gebot_job_error ? (
-                      <span className="text-xs text-red-700 whitespace-pre-line">Fehler: {record.geringstes_gebot_job_error}</span>
+                      <span className="text-xs text-red-700 whitespace-pre-line">
+                        Fehler: {record.geringstes_gebot_job_error}
+                      </span>
                     ) : null}
                     {record.geringstes_gebot_notiz ? (
                       <details className="text-xs">
-                        <summary className="cursor-pointer text-muted-foreground">Begründung anzeigen</summary>
-                        <pre className="whitespace-pre-wrap mt-1 text-foreground/90 font-sans">{record.geringstes_gebot_notiz}</pre>
+                        <summary className="cursor-pointer text-muted-foreground">
+                          Begründung anzeigen
+                        </summary>
+                        <pre className="whitespace-pre-wrap mt-1 text-foreground/90 font-sans">
+                          {record.geringstes_gebot_notiz}
+                        </pre>
                       </details>
                     ) : null}
                     {record.geringstes_gebot_ermittelt_am ? (
                       <span className="text-xs text-muted-foreground">
-                        Zuletzt analysiert: {new Date(record.geringstes_gebot_ermittelt_am).toLocaleString("de-DE")}
+                        Zuletzt analysiert:{" "}
+                        {new Date(
+                          record.geringstes_gebot_ermittelt_am,
+                        ).toLocaleString("de-DE")}
                       </span>
                     ) : null}
-                    {Array.isArray(record.bestehenbleibende_rechte_jsonb) && record.bestehenbleibende_rechte_jsonb.length > 0 ? (
+                    {Array.isArray(record.bestehenbleibende_rechte_jsonb) &&
+                    record.bestehenbleibende_rechte_jsonb.length > 0 ? (
                       <details className="text-xs">
                         <summary className="cursor-pointer text-muted-foreground">
-                          {record.bestehenbleibende_rechte_jsonb.length} bestehenbleibende Rechte
+                          {record.bestehenbleibende_rechte_jsonb.length}{" "}
+                          bestehenbleibende Rechte
                         </summary>
                         <ul className="mt-1 space-y-1 pl-4 list-disc">
-                          {record.bestehenbleibende_rechte_jsonb.map((r: any, i: number) => (
-                            <li key={i}>
-                              Rang {r.rang ?? "?"} (Abt. {r.abteilung ?? "?"}): {r.art ?? ""}
-                              {r.glaeubiger ? ` — ${r.glaeubiger}` : ""}
-                              {r.valuta_eur_geschaetzt != null ? ` · ${Number(r.valuta_eur_geschaetzt).toLocaleString("de-DE")} EUR` : ""}
-                              {r.bemerkung ? <span className="text-muted-foreground"> ({r.bemerkung})</span> : null}
-                            </li>
-                          ))}
+                          {record.bestehenbleibende_rechte_jsonb.map(
+                            (r: any, i: number) => (
+                              <li key={i}>
+                                Rang {r.rang ?? "?"} (Abt. {r.abteilung ?? "?"}
+                                ): {r.art ?? ""}
+                                {r.glaeubiger ? ` — ${r.glaeubiger}` : ""}
+                                {r.valuta_eur_geschaetzt != null
+                                  ? ` · ${Number(r.valuta_eur_geschaetzt).toLocaleString("de-DE")} EUR`
+                                  : ""}
+                                {r.bemerkung ? (
+                                  <span className="text-muted-foreground">
+                                    {" "}
+                                    ({r.bemerkung})
+                                  </span>
+                                ) : null}
+                              </li>
+                            ),
+                          )}
                         </ul>
                       </details>
                     ) : null}
@@ -717,7 +854,9 @@ const ZvgAkteShowContent = () => {
             <CardTitle className="text-base">Tracking</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Row label="zvg.com-Aufnahmetag">{formatDate(record.aufnahmetag)}</Row>
+            <Row label="zvg.com-Aufnahmetag">
+              {formatDate(record.aufnahmetag)}
+            </Row>
             <Row label="Erstmals gesehen">
               {formatDateTime(record.first_seen)}
             </Row>
