@@ -4,6 +4,7 @@
 Usage: backfill3.py <limit>
 """
 import base64, glob, json, os, subprocess, sys, tempfile, time, urllib.request, urllib.parse
+from PIL import Image
 
 SB = "https://ujiiaqvwpnniaasdhyrb.supabase.co"
 KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -260,9 +261,12 @@ def process(akte, akey):
 
 def main():
     akey = anthropic_key()
+    zid_filter = ""
+    if len(sys.argv) > 2 and not sys.argv[2].isdigit():
+        zid_filter = f"&zid=eq.{urllib.parse.quote(sys.argv[2])}"
     cands = api("GET", "/rest/v1/zvg_akte?select=zid,cover_bild_path,bilder_paths,objektart"
                 "&or=(hat_gutachten_lokal.eq.true,hat_expose_lokal.eq.true)"
-                f"&bilder_extraction_at=is.null&limit={LIMIT}")
+                f"{zid_filter}&bilder_extraction_at=is.null&limit={LIMIT}")
     print(f"Kandidaten: {len(cands or [])}", flush=True)
     done = imgs = errs = 0
     for a in (cands or []):
