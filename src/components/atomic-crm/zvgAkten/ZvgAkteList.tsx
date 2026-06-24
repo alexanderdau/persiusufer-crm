@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useGetIdentity, useListContext, useRecordContext } from "ra-core";
+import {
+  useGetIdentity,
+  useListContext,
+  useRecordContext,
+  useStore,
+} from "ra-core";
 import {
   BookText,
   Camera,
@@ -10,6 +15,8 @@ import {
   Gavel,
   Globe2,
   Heart,
+  Image as ImageIcon,
+  ImageOff,
   List,
   Mail,
   MailCheck,
@@ -40,6 +47,12 @@ import { useViewMode } from "./useViewMode";
 import { ExportButton } from "@/components/admin/export-button";
 import { states } from "../companies/states";
 import { getSupabaseClient } from "../providers/supabase/supabase";
+
+// Titelbild-URL (gleicher Bucket wie ZvgAkteShow).
+const SUPABASE_URL = (import.meta as any).env?.VITE_SUPABASE_URL ?? "";
+const BILDER_BUCKET = "zvg-bilder";
+const publicBilderUrl = (path: string) =>
+  `${SUPABASE_URL}/storage/v1/object/public/${BILDER_BUCKET}/${path}`;
 
 const formatEur = (value?: number | null) => {
   if (value == null) return "—";
@@ -118,6 +131,7 @@ const ZvgAkteList = () => {
 
 const ZvgAkteListLayout = () => {
   const { isPending } = useListContext();
+  const [preview, setPreview] = useStore<boolean>("zvgakte_preview", false);
   if (isPending) return null;
 
   return (
@@ -126,6 +140,21 @@ const ZvgAkteListLayout = () => {
       <div className="w-full flex flex-col gap-4">
         <div className="flex gap-2 items-center">
           <ViewToggle />
+          <button
+            type="button"
+            onClick={() => setPreview(!preview)}
+            aria-pressed={preview}
+            title="Vorschaubilder ein-/ausblenden"
+            className={
+              "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors " +
+              (preview
+                ? "bg-muted font-medium"
+                : "hover:bg-muted/50 text-muted-foreground")
+            }
+          >
+            <ImageIcon className="size-4" />
+            Vorschau
+          </button>
         </div>
         <ViewSwitchedContent>
           <Card className="py-0">
@@ -133,6 +162,28 @@ const ZvgAkteListLayout = () => {
               rowClick="show"
               bulkActionButtons={<BulkBatchAnfrageButton />}
             >
+              {preview ? (
+                <DataTable.Col<ZvgAkte>
+                  label=""
+                  headerClassName="w-[88px]"
+                  cellClassName="w-[88px] px-1"
+                  disableSort
+                  render={(record) =>
+                    record.cover_bild_path ? (
+                      <img
+                        src={publicBilderUrl(record.cover_bild_path)}
+                        alt=""
+                        loading="lazy"
+                        className="h-16 w-20 object-cover rounded-md border bg-muted"
+                      />
+                    ) : (
+                      <div className="h-16 w-20 rounded-md border bg-muted/40 flex items-center justify-center text-muted-foreground">
+                        <ImageOff className="size-5" />
+                      </div>
+                    )
+                  }
+                />
+              ) : null}
               <DataTable.Col<ZvgAkte>
                 label=""
                 headerClassName="w-8"
