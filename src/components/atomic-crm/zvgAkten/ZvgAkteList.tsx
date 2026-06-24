@@ -174,7 +174,7 @@ const ZvgAkteListLayout = () => {
                         src={publicBilderUrl(record.cover_bild_path)}
                         alt=""
                         loading="lazy"
-                        className="h-16 w-20 object-cover rounded-md border bg-muted"
+                        className="h-16 w-20 object-contain rounded-md border bg-muted"
                       />
                     ) : (
                       <div className="h-16 w-20 rounded-md border bg-muted/40 flex items-center justify-center text-muted-foreground">

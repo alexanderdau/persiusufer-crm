@@ -209,7 +209,7 @@ const BilderSlider = ({ paths, alt }: { paths: string[]; alt: string }) => {
               <img
                 src={publicBilderUrl(p)}
                 alt=""
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain bg-muted"
                 loading="lazy"
               />
             </button>
@@ -298,13 +298,15 @@ const BildGalerie = ({
                 href={publicUrlB(r.bucket, r.storage_path)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="shrink-0"
+                title="In voller Größe öffnen"
+                className="shrink-0 h-40 w-56 flex items-center justify-center rounded-md border bg-muted/30 overflow-hidden hover:opacity-90 transition-opacity"
               >
+                {/* object-contain: volles Bild, nie beschnitten; feste Box verhindert Kollaps */}
                 <img
                   src={publicUrlB(r.bucket, r.storage_path)}
                   alt={alt}
                   loading="lazy"
-                  className="h-32 w-auto rounded-md border object-cover hover:opacity-90 transition-opacity"
+                  className="max-h-full max-w-full object-contain"
                 />
               </a>
             ))}
