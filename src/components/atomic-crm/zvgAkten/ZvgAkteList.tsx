@@ -605,8 +605,8 @@ const StatusTriToggle = ({
   };
 
   const baseCls =
-    "w-auto md:w-full flex items-center justify-between rounded-md border px-3 text-sm transition-colors";
-  const sizeCls = isMobile ? "h-10" : "md:h-8 h-10";
+    "w-auto md:w-full flex items-center justify-between gap-2 rounded-md border px-3 py-1 text-sm transition-colors";
+  const sizeCls = isMobile ? "min-h-10" : "md:min-h-8 min-h-10";
   const stateCls = isInclude
     ? "bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100"
     : isExclude
@@ -629,11 +629,13 @@ const StatusTriToggle = ({
             : `Klick: nur '${label}' anzeigen`
       }
     >
-      <span>
+      <span className="text-left leading-tight">
         {prefix}
         {label}
       </span>
-      <span className="text-xs tabular-nums opacity-70">{indicator}</span>
+      <span className="text-xs tabular-nums opacity-70 shrink-0">
+        {indicator}
+      </span>
     </button>
   );
 };
