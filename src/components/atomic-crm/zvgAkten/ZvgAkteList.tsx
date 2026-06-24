@@ -37,6 +37,7 @@ import {
 } from "./BatchAnfrageButton";
 import { ZvgAkteMap } from "./ZvgAkteMap";
 import { useViewMode } from "./useViewMode";
+import { ExportButton } from "@/components/admin/export-button";
 import { states } from "../companies/states";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
@@ -103,6 +104,12 @@ const ZvgAkteList = () => {
       perPage={25}
       sort={{ field: "termin", order: "ASC" }}
       exporter={false}
+      actions={
+        <div className="flex items-center gap-2">
+          <BatchAnfrageButton />
+          <ExportButton />
+        </div>
+      }
     >
       <ZvgAkteListLayout />
     </List>
@@ -117,9 +124,8 @@ const ZvgAkteListLayout = () => {
     <div className="flex flex-row gap-8">
       <ZvgAkteListFilter />
       <div className="w-full flex flex-col gap-4">
-        <div className="flex justify-between gap-2 items-center">
+        <div className="flex gap-2 items-center">
           <ViewToggle />
-          <BatchAnfrageButton />
         </div>
         <ViewSwitchedContent>
           <Card className="py-0">
