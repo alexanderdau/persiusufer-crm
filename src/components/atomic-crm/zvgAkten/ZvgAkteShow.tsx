@@ -226,6 +226,7 @@ const publicUrlB = (bucket: string, path: string) =>
   `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${path}`;
 
 const KIND_LABELS: Record<string, string> = {
+  luftbild: "Luftbild",
   foto_aussen: "Außenansicht",
   foto_innen: "Innenansicht",
   grundriss: "Grundriss",
@@ -233,6 +234,7 @@ const KIND_LABELS: Record<string, string> = {
   sonstiges: "Sonstiges",
 };
 const KIND_ORDER = [
+  "luftbild",
   "foto_aussen",
   "foto_innen",
   "grundriss",
