@@ -249,6 +249,13 @@ type BildRow = {
   kind: string | null;
 };
 
+// Quelle nie im Label anzeigen: entfernt einen abschließenden Zusatz
+// wie " (zvg-portal)" / " (zvg.com)" aus Dokument-Titeln.
+const stripSource = (t?: string | null) => {
+  const s = (t ?? "").replace(/\s*\(\s*zvg[^)]*\)\s*$/i, "").trim();
+  return s || (t ?? "");
+};
+
 const BildGalerie = ({
   zid,
   fallbackPaths,
@@ -265,15 +272,9 @@ const BildGalerie = ({
     sort: { field: "image_index", order: "ASC" },
   });
 
-  if (isPending) return null;
-  const rows = data ?? [];
-  // Fallback auf cover/bilder_paths (z. B. zvg.com-Bilder ohne kind)
-  if (!rows.length) {
-    return fallbackPaths.length ? (
-      <BilderSlider paths={fallbackPaths} alt={alt} />
-    ) : null;
-  }
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
 
+  const rows = data ?? [];
   const groups: Record<string, BildRow[]> = {};
   for (const r of rows) {
     const k = r.kind || "sonstiges";
@@ -283,6 +284,38 @@ const BildGalerie = ({
     (a, b) =>
       (KIND_ORDER.indexOf(a) + 1 || 99) - (KIND_ORDER.indexOf(b) + 1 || 99),
   );
+  // flache, sortierte Liste für die Lightbox-Navigation
+  const flat = kinds.flatMap((k) => groups[k].map((r) => ({ r, kind: k })));
+
+  useEffect(() => {
+    if (openIdx == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenIdx(null);
+      else if (e.key === "ArrowRight" || e.key === "Tab") {
+        e.preventDefault();
+        setOpenIdx((i) => (i == null ? i : (i + 1) % flat.length));
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setOpenIdx((i) =>
+          i == null ? i : (i - 1 + flat.length) % flat.length,
+        );
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openIdx, flat.length]);
+
+  if (isPending) return null;
+  // Fallback auf cover/bilder_paths (z. B. zvg.com-Bilder ohne kind)
+  if (!rows.length) {
+    return fallbackPaths.length ? (
+      <BilderSlider paths={fallbackPaths} alt={alt} />
+    ) : null;
+  }
+
+  const cur = openIdx != null ? flat[openIdx] : null;
+  const step = (d: number) =>
+    setOpenIdx((i) => (i == null ? i : (i + d + flat.length) % flat.length));
 
   return (
     <div className="flex flex-col gap-3">
@@ -292,27 +325,81 @@ const BildGalerie = ({
             {KIND_LABELS[k] ?? k} ({groups[k].length})
           </span>
           <div className="flex flex-row gap-2 overflow-x-auto pb-1">
-            {groups[k].map((r) => (
-              <a
-                key={r.id}
-                href={publicUrlB(r.bucket, r.storage_path)}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="In voller Größe öffnen"
-                className="shrink-0 h-40 w-56 flex items-center justify-center rounded-md border bg-muted/30 overflow-hidden hover:opacity-90 transition-opacity"
-              >
-                {/* object-contain: volles Bild, nie beschnitten; feste Box verhindert Kollaps */}
-                <img
-                  src={publicUrlB(r.bucket, r.storage_path)}
-                  alt={alt}
-                  loading="lazy"
-                  className="max-h-full max-w-full object-contain"
-                />
-              </a>
-            ))}
+            {groups[k].map((r) => {
+              const idx = flat.findIndex((f) => f.r.id === r.id);
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setOpenIdx(idx)}
+                  title="Vergrößern"
+                  className="shrink-0 h-40 w-56 flex items-center justify-center rounded-md border bg-muted/30 overflow-hidden hover:opacity-90 transition-opacity"
+                >
+                  {/* object-contain: volles Bild, nie beschnitten */}
+                  <img
+                    src={publicUrlB(r.bucket, r.storage_path)}
+                    alt={alt}
+                    loading="lazy"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </button>
+              );
+            })}
           </div>
         </div>
       ))}
+
+      {cur ? (
+        <div
+          className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setOpenIdx(null)}
+        >
+          <div className="absolute top-3 left-4 text-white/90 text-sm">
+            {KIND_LABELS[cur.kind] ?? cur.kind} · {(openIdx ?? 0) + 1} /{" "}
+            {flat.length}
+          </div>
+          <button
+            type="button"
+            aria-label="Schließen"
+            onClick={() => setOpenIdx(null)}
+            className="absolute top-2 right-4 text-white/90 hover:text-white text-3xl leading-none"
+          >
+            ×
+          </button>
+          {flat.length > 1 ? (
+            <button
+              type="button"
+              aria-label="Zurück"
+              onClick={(e) => {
+                e.stopPropagation();
+                step(-1);
+              }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white/10 hover:bg-white/25 text-white text-3xl flex items-center justify-center"
+            >
+              ‹
+            </button>
+          ) : null}
+          <img
+            src={publicUrlB(cur.r.bucket, cur.r.storage_path)}
+            alt={alt}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[88vh] max-w-[92vw] object-contain rounded"
+          />
+          {flat.length > 1 ? (
+            <button
+              type="button"
+              aria-label="Weiter"
+              onClick={(e) => {
+                e.stopPropagation();
+                step(1);
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 size-12 rounded-full bg-white/10 hover:bg-white/25 text-white text-3xl flex items-center justify-center"
+            >
+              ›
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -379,12 +466,13 @@ const DokumenteListe = () => {
           >
             <FileText className="size-5 text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{d.titel}</div>
+              <div className="text-sm font-medium truncate">
+                {stripSource(d.titel)}
+              </div>
               <div className="text-xs text-muted-foreground flex flex-row gap-2 flex-wrap">
                 <Badge variant="outline" className="font-normal h-5">
                   {ART_LABELS[d.art] ?? d.art}
                 </Badge>
-                {d.source ? <span>· Quelle: {d.source}</span> : null}
                 {d.size_bytes ? (
                   <span>· {formatBytes(d.size_bytes)}</span>
                 ) : null}
@@ -408,7 +496,7 @@ const DokumenteListe = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="size-5" />
-              {viewing?.titel}
+              {stripSource(viewing?.titel)}
               {viewing?.art ? (
                 <Badge variant="outline" className="font-normal">
                   {ART_LABELS[viewing.art] ?? viewing.art}
