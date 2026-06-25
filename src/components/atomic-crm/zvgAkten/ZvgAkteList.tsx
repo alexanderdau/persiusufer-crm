@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   useGetIdentity,
   useListContext,
@@ -119,12 +119,7 @@ const ZvgAkteList = () => {
       sort={{ field: "termin", order: "ASC" }}
       exporter={false}
       pagination={false}
-      actions={
-        <div className="flex items-center gap-2">
-          <BatchAnfrageButton />
-          <ExportButton />
-        </div>
-      }
+      actions={false}
     >
       <ZvgAkteListLayout />
     </List>
@@ -135,13 +130,42 @@ const ZvgAkteListLayout = () => {
   const { isPending } = useListContext();
   const [preview, setPreview] = useStore<boolean>("zvgakte_preview", false);
   const [view] = useViewMode();
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [frameH, setFrameH] = useState<number | undefined>(undefined);
+
+  // Eigener Scroll-Frame: nur die Liste scrollt, Filter links scrollt separat.
+  // Höhe = Viewport minus Abstand der Spalten-Zeile von oben (dynamisch gemessen).
+  useLayoutEffect(() => {
+    if (view !== "list") return;
+    const el = rowRef.current;
+    if (!el) return;
+    const update = () =>
+      setFrameH(
+        Math.max(
+          360,
+          window.innerHeight -
+            (el.getBoundingClientRect().top + window.scrollY),
+        ),
+      );
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [view, isPending]);
+
   if (isPending) return null;
+  const isList = view === "list";
 
   return (
-    <div className="flex flex-row gap-8">
-      <ZvgAkteListFilter />
-      <div className="w-full flex flex-col gap-4">
-        <div className="sticky top-[46px] z-20 bg-background flex gap-2 items-center py-2 -mt-2 border-b">
+    <div
+      ref={rowRef}
+      className="flex flex-row gap-8"
+      style={isList && frameH ? { height: frameH } : undefined}
+    >
+      <div className={isList ? "shrink-0 overflow-y-auto pr-1" : "shrink-0"}>
+        <ZvgAkteListFilter />
+      </div>
+      <div className="w-full flex flex-col gap-4 min-h-0">
+        <div className="flex gap-2 items-center py-2 border-b">
           <ViewToggle />
           <button
             type="button"
@@ -158,377 +182,385 @@ const ZvgAkteListLayout = () => {
             <ImageIcon className="size-4" />
             Vorschau
           </button>
-          {view === "list" ? (
-            <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {isList ? (
               <ListPagination rowsPerPageOptions={[10, 25, 50, 100]} />
-            </div>
-          ) : null}
+            ) : null}
+            <BatchAnfrageButton />
+            <ExportButton />
+          </div>
         </div>
-        <ViewSwitchedContent>
-          <Card className="py-0">
-            <DataTable<ZvgAkte>
-              rowClick="show"
-              bulkActionButtons={<BulkBatchAnfrageButton />}
-            >
-              {preview ? (
+        {isList ? (
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <Card className="py-0">
+              <DataTable<ZvgAkte>
+                rowClick="show"
+                bulkActionButtons={<BulkBatchAnfrageButton />}
+              >
+                {preview ? (
+                  <DataTable.Col<ZvgAkte>
+                    label=""
+                    headerClassName="w-[88px]"
+                    cellClassName="w-[88px] px-1"
+                    disableSort
+                    render={(record) =>
+                      record.cover_bild_path ? (
+                        <img
+                          src={publicBilderUrl(record.cover_bild_path)}
+                          alt=""
+                          loading="lazy"
+                          className="h-16 w-20 object-contain rounded-md border bg-muted"
+                        />
+                      ) : (
+                        <div className="h-16 w-20 rounded-md border bg-muted/40 flex items-center justify-center text-muted-foreground">
+                          <ImageOff className="size-5" />
+                        </div>
+                      )
+                    }
+                  />
+                ) : null}
                 <DataTable.Col<ZvgAkte>
                   label=""
-                  headerClassName="w-[88px]"
-                  cellClassName="w-[88px] px-1"
+                  headerClassName="w-8"
+                  cellClassName="w-8 px-1"
                   disableSort
-                  render={(record) =>
-                    record.cover_bild_path ? (
-                      <img
-                        src={publicBilderUrl(record.cover_bild_path)}
-                        alt=""
-                        loading="lazy"
-                        className="h-16 w-20 object-contain rounded-md border bg-muted"
-                      />
-                    ) : (
-                      <div className="h-16 w-20 rounded-md border bg-muted/40 flex items-center justify-center text-muted-foreground">
-                        <ImageOff className="size-5" />
-                      </div>
-                    )
-                  }
+                  render={() => <FavoritHerz />}
                 />
-              ) : null}
-              <DataTable.Col<ZvgAkte>
-                label=""
-                headerClassName="w-8"
-                cellClassName="w-8 px-1"
-                disableSort
-                render={() => <FavoritHerz />}
-              />
-              <DataTable.Col<ZvgAkte> source="az" label="AZ" />
-              <DataTable.Col<ZvgAkte>
-                source="objektart"
-                label="Objektart"
-                cellClassName="max-w-[280px] sm:max-w-[360px] md:max-w-[480px]"
-                render={(record) => {
-                  const txt = record.objektart?.trim() ?? "—";
-                  return (
-                    <span
-                      className="block truncate"
-                      title={txt !== "—" ? txt : undefined}
-                    >
-                      {txt}
-                    </span>
-                  );
-                }}
-              />
-              <DataTable.Col<ZvgAkte>
-                label={
-                  <span title="Geringstes Gebot (aus Anordnung/Gutachten extrahiert)">
-                    <Gavel className="size-3.5 inline-block" />
-                  </span>
-                }
-                source="geringstes_gebot_eur"
-                headerClassName="w-12"
-                cellClassName="w-12 px-1"
-                disableSort
-                render={(record) => {
-                  const q = record.geringstes_gebot_quelle;
-                  if (q === "in_progress") {
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="bg-blue-50 text-blue-700 border-blue-300 font-semibold px-1.5 py-0 h-5"
-                        title="Haiku-Analyse läuft"
-                      >
-                        …
-                      </Badge>
-                    );
-                  }
-                  if (q === "failed") {
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="bg-red-50 text-red-700 border-red-300 font-semibold px-1.5 py-0 h-5"
-                        title="Haiku-Job fehlgeschlagen"
-                      >
-                        !
-                      </Badge>
-                    );
-                  }
-                  if (record.geringstes_gebot_eur != null) {
-                    const eur = Number(record.geringstes_gebot_eur);
-                    const k =
-                      eur >= 1000 ? Math.round(eur / 1000) + "k" : String(eur);
-                    const rang = record.geringstes_gebot_rang_betreibend;
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="bg-amber-50 text-amber-800 border-amber-300 font-semibold px-1.5 py-0 h-5"
-                        title={`Geringstes Gebot: ${eur.toLocaleString("de-DE")} EUR${rang ? ` · Rang ${rang}` : ""}`}
-                      >
-                        {k}
-                      </Badge>
-                    );
-                  }
-                  // Quelle vorhanden, aber EUR=NULL (Haiku konnte nichts ableiten)
-                  if (q && q !== "in_progress" && q !== "failed") {
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="bg-zinc-50 text-zinc-600 border-zinc-300 font-semibold px-1.5 py-0 h-5"
-                        title="Geringstes Gebot analysiert, aber Dokumente liefern keinen eindeutigen Wert"
-                      >
-                        ?
-                      </Badge>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="fotos_count"
-                label={
-                  <span title="Anzahl extrahierter Fotos aus Gutachten/Exposé">
-                    <Camera className="size-3.5 inline-block" />
-                  </span>
-                }
-                headerClassName="w-8"
-                cellClassName="w-8 px-1"
-                disableSort
-                render={(record) => {
-                  const n = record.fotos_count ?? 0;
-                  if (n === 0) return null;
-                  return (
-                    <Badge
-                      variant="outline"
-                      className="bg-sky-50 text-sky-700 border-sky-300 font-semibold px-1.5 py-0 h-5 tabular-nums"
-                      title={`${n} Foto${n === 1 ? "" : "s"} aus Gutachten extrahiert`}
-                    >
-                      {n}
-                    </Badge>
-                  );
-                }}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="dokumente_count"
-                label={
-                  <span title="Anzahl Dokumente im Storage (Anordnung, Gutachten, Exposé etc.)">
-                    <Files className="size-3.5 inline-block" />
-                  </span>
-                }
-                headerClassName="w-8"
-                cellClassName="w-8 px-1"
-                disableSort
-                render={(record) => {
-                  const n = record.dokumente_count ?? 0;
-                  if (n === 0) return null;
-                  return (
-                    <Badge
-                      variant="outline"
-                      className="bg-slate-50 text-slate-700 border-slate-300 font-semibold px-1.5 py-0 h-5 tabular-nums"
-                      title={`${n} Dokument${n === 1 ? "" : "e"} im Storage`}
-                    >
-                      {n}
-                    </Badge>
-                  );
-                }}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="gpreis_eur"
-                label={
-                  <span title="Gutachten verfügbar (grün) oder kostenpflichtig (G€)">
-                    <BookText className="size-3.5 inline-block" />
-                  </span>
-                }
-                headerClassName="w-8"
-                cellClassName="w-8"
-                disableSort
-                render={(record) => {
-                  // Priorität: volles Gutachten > Exposé > zvg.com kostenlos > kostenpflichtig
-                  const hatGutachten = record.hat_gutachten_lokal === true;
-                  const hatExpose = record.hat_expose_lokal === true;
-                  const kostenlos =
-                    record.gpreis_eur === 0 && record.gutachten_url;
-                  if (hatGutachten || kostenlos) {
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
-                        title={
-                          hatGutachten
-                            ? "Gutachten lokal verfügbar"
-                            : "Kostenloses Gutachten (zvg.com)"
-                        }
-                      >
-                        G
-                      </Badge>
-                    );
-                  }
-                  if (hatExpose) {
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="bg-amber-50 text-amber-800 border-amber-300 font-semibold px-1.5 py-0 h-5"
-                        title="Nur Exposé verfügbar — kein vollständiges Gutachten"
-                      >
-                        E
-                      </Badge>
-                    );
-                  }
-                  if (record.gpreis_eur && record.gpreis_eur > 0) {
-                    return (
-                      <Badge
-                        variant="outline"
-                        className="bg-muted text-muted-foreground border-muted-foreground/30 font-semibold px-1.5 py-0 h-5"
-                        title={`Gutachten kostenpflichtig (${record.gpreis_eur} €)`}
-                      >
-                        G€
-                      </Badge>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="termin"
-                label="Termin"
-                render={(record) => formatDate(record.termin)}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="aufnahmetag"
-                label="Aufnahmetag"
-                render={(record) => formatDate(record.aufnahmetag)}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="vkw_eur"
-                label="VKW"
-                headerClassName="text-right"
-                cellClassName="text-right"
-                render={(record) => (
-                  <span className="tabular-nums">
-                    {formatEur(record.vkw_eur)}
-                  </span>
-                )}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="geocoding_precision"
-                label={
-                  <span title="Geo-Präzision: 2 Kreise = Straße/Hausnummer, 1 Kreis = PLZ/Ortsmitte">
-                    <Globe2 className="size-3.5 inline-block" />
-                  </span>
-                }
-                headerClassName="w-6 text-center"
-                cellClassName="w-6 px-0 text-center"
-                disableSort
-                render={(record) => {
-                  const prec = record.geocoding_precision;
-                  if (prec === "house" || prec === "street") {
+                <DataTable.Col<ZvgAkte> source="az" label="AZ" />
+                <DataTable.Col<ZvgAkte>
+                  source="objektart"
+                  label="Objektart"
+                  cellClassName="max-w-[280px] sm:max-w-[360px] md:max-w-[480px]"
+                  render={(record) => {
+                    const txt = record.objektart?.trim() ?? "—";
                     return (
                       <span
-                        className="inline-flex items-center justify-center"
-                        title={`Präzise geocodiert (${prec === "house" ? "Hausnummer" : "Straße"})`}
-                        aria-label="präzise geocodiert"
+                        className="block truncate"
+                        title={txt !== "—" ? txt : undefined}
                       >
-                        <span className="relative inline-block size-3">
-                          <span className="absolute inset-0 rounded-full border-2 border-emerald-500/60" />
-                          <span className="absolute inset-[3px] rounded-full bg-emerald-600" />
+                        {txt}
+                      </span>
+                    );
+                  }}
+                />
+                <DataTable.Col<ZvgAkte>
+                  label={
+                    <span title="Geringstes Gebot (aus Anordnung/Gutachten extrahiert)">
+                      <Gavel className="size-3.5 inline-block" />
+                    </span>
+                  }
+                  source="geringstes_gebot_eur"
+                  headerClassName="w-12"
+                  cellClassName="w-12 px-1"
+                  disableSort
+                  render={(record) => {
+                    const q = record.geringstes_gebot_quelle;
+                    if (q === "in_progress") {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="bg-blue-50 text-blue-700 border-blue-300 font-semibold px-1.5 py-0 h-5"
+                          title="Haiku-Analyse läuft"
+                        >
+                          …
+                        </Badge>
+                      );
+                    }
+                    if (q === "failed") {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="bg-red-50 text-red-700 border-red-300 font-semibold px-1.5 py-0 h-5"
+                          title="Haiku-Job fehlgeschlagen"
+                        >
+                          !
+                        </Badge>
+                      );
+                    }
+                    if (record.geringstes_gebot_eur != null) {
+                      const eur = Number(record.geringstes_gebot_eur);
+                      const k =
+                        eur >= 1000
+                          ? Math.round(eur / 1000) + "k"
+                          : String(eur);
+                      const rang = record.geringstes_gebot_rang_betreibend;
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-50 text-amber-800 border-amber-300 font-semibold px-1.5 py-0 h-5"
+                          title={`Geringstes Gebot: ${eur.toLocaleString("de-DE")} EUR${rang ? ` · Rang ${rang}` : ""}`}
+                        >
+                          {k}
+                        </Badge>
+                      );
+                    }
+                    // Quelle vorhanden, aber EUR=NULL (Haiku konnte nichts ableiten)
+                    if (q && q !== "in_progress" && q !== "failed") {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="bg-zinc-50 text-zinc-600 border-zinc-300 font-semibold px-1.5 py-0 h-5"
+                          title="Geringstes Gebot analysiert, aber Dokumente liefern keinen eindeutigen Wert"
+                        >
+                          ?
+                        </Badge>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="fotos_count"
+                  label={
+                    <span title="Anzahl extrahierter Fotos aus Gutachten/Exposé">
+                      <Camera className="size-3.5 inline-block" />
+                    </span>
+                  }
+                  headerClassName="w-8"
+                  cellClassName="w-8 px-1"
+                  disableSort
+                  render={(record) => {
+                    const n = record.fotos_count ?? 0;
+                    if (n === 0) return null;
+                    return (
+                      <Badge
+                        variant="outline"
+                        className="bg-sky-50 text-sky-700 border-sky-300 font-semibold px-1.5 py-0 h-5 tabular-nums"
+                        title={`${n} Foto${n === 1 ? "" : "s"} aus Gutachten extrahiert`}
+                      >
+                        {n}
+                      </Badge>
+                    );
+                  }}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="dokumente_count"
+                  label={
+                    <span title="Anzahl Dokumente im Storage (Anordnung, Gutachten, Exposé etc.)">
+                      <Files className="size-3.5 inline-block" />
+                    </span>
+                  }
+                  headerClassName="w-8"
+                  cellClassName="w-8 px-1"
+                  disableSort
+                  render={(record) => {
+                    const n = record.dokumente_count ?? 0;
+                    if (n === 0) return null;
+                    return (
+                      <Badge
+                        variant="outline"
+                        className="bg-slate-50 text-slate-700 border-slate-300 font-semibold px-1.5 py-0 h-5 tabular-nums"
+                        title={`${n} Dokument${n === 1 ? "" : "e"} im Storage`}
+                      >
+                        {n}
+                      </Badge>
+                    );
+                  }}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="gpreis_eur"
+                  label={
+                    <span title="Gutachten verfügbar (grün) oder kostenpflichtig (G€)">
+                      <BookText className="size-3.5 inline-block" />
+                    </span>
+                  }
+                  headerClassName="w-8"
+                  cellClassName="w-8"
+                  disableSort
+                  render={(record) => {
+                    // Priorität: volles Gutachten > Exposé > zvg.com kostenlos > kostenpflichtig
+                    const hatGutachten = record.hat_gutachten_lokal === true;
+                    const hatExpose = record.hat_expose_lokal === true;
+                    const kostenlos =
+                      record.gpreis_eur === 0 && record.gutachten_url;
+                    if (hatGutachten || kostenlos) {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="bg-green-50 text-green-800 border-green-300 font-semibold px-1.5 py-0 h-5"
+                          title={
+                            hatGutachten
+                              ? "Gutachten lokal verfügbar"
+                              : "Kostenloses Gutachten (zvg.com)"
+                          }
+                        >
+                          G
+                        </Badge>
+                      );
+                    }
+                    if (hatExpose) {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="bg-amber-50 text-amber-800 border-amber-300 font-semibold px-1.5 py-0 h-5"
+                          title="Nur Exposé verfügbar — kein vollständiges Gutachten"
+                        >
+                          E
+                        </Badge>
+                      );
+                    }
+                    if (record.gpreis_eur && record.gpreis_eur > 0) {
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="bg-muted text-muted-foreground border-muted-foreground/30 font-semibold px-1.5 py-0 h-5"
+                          title={`Gutachten kostenpflichtig (${record.gpreis_eur} €)`}
+                        >
+                          G€
+                        </Badge>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="termin"
+                  label="Termin"
+                  render={(record) => formatDate(record.termin)}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="aufnahmetag"
+                  label="Aufnahmetag"
+                  render={(record) => formatDate(record.aufnahmetag)}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="vkw_eur"
+                  label="VKW"
+                  headerClassName="text-right"
+                  cellClassName="text-right"
+                  render={(record) => (
+                    <span className="tabular-nums">
+                      {formatEur(record.vkw_eur)}
+                    </span>
+                  )}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="geocoding_precision"
+                  label={
+                    <span title="Geo-Präzision: 2 Kreise = Straße/Hausnummer, 1 Kreis = PLZ/Ortsmitte">
+                      <Globe2 className="size-3.5 inline-block" />
+                    </span>
+                  }
+                  headerClassName="w-6 text-center"
+                  cellClassName="w-6 px-0 text-center"
+                  disableSort
+                  render={(record) => {
+                    const prec = record.geocoding_precision;
+                    if (prec === "house" || prec === "street") {
+                      return (
+                        <span
+                          className="inline-flex items-center justify-center"
+                          title={`Präzise geocodiert (${prec === "house" ? "Hausnummer" : "Straße"})`}
+                          aria-label="präzise geocodiert"
+                        >
+                          <span className="relative inline-block size-3">
+                            <span className="absolute inset-0 rounded-full border-2 border-emerald-500/60" />
+                            <span className="absolute inset-[3px] rounded-full bg-emerald-600" />
+                          </span>
+                        </span>
+                      );
+                    }
+                    if (prec === "postcode" || prec === "city") {
+                      return (
+                        <span
+                          className="inline-flex items-center justify-center"
+                          title={`Geocodiert (${prec === "postcode" ? "Postleitzahl" : "Ortsmitte"})`}
+                          aria-label="geocodiert"
+                        >
+                          <span className="inline-block size-2.5 rounded-full border-2 border-amber-500/70" />
+                        </span>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="objekt_ort"
+                  label="Ort"
+                  render={(record) =>
+                    record.objekt_ort ?? record.objekt_ortsteil ?? "—"
+                  }
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="ag_name_raw"
+                  label="Amtsgericht"
+                  render={(record) => record.ag_name_raw ?? "—"}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="status"
+                  label="Status"
+                  render={(record) => (
+                    <Badge variant="secondary">
+                      {ZVG_STATUSES.find((s) => s.value === record.status)
+                        ?.label ?? record.status}
+                    </Badge>
+                  )}
+                />
+                <DataTable.Col<ZvgAkte>
+                  source="letzte_anfrage_status"
+                  label="Anfrage"
+                  headerClassName="w-20"
+                  cellClassName="w-20 px-1"
+                  disableSort
+                  render={(record) => {
+                    const st = record.letzte_anfrage_status;
+                    // Keine Anfrage angelegt → keine Pille
+                    if (!st || st === "entwurf") return null;
+                    const versendet = st === "gesendet" || st === "beantwortet";
+                    const beantwortet = st === "beantwortet";
+                    const datum = record.letzte_anfrage_am
+                      ? new Date(record.letzte_anfrage_am).toLocaleDateString(
+                          "de-DE",
+                          { day: "2-digit", month: "2-digit", year: "2-digit" },
+                        )
+                      : "";
+                    const opt = record.letzte_anfrage_option;
+                    const titleParts: string[] = [];
+                    titleParts.push(
+                      versendet
+                        ? `Anfrage versendet${datum ? " am " + datum : ""}`
+                        : "Anfrage nicht versendet",
+                    );
+                    titleParts.push(
+                      beantwortet
+                        ? `Antwort eingegangen${opt ? " · Option " + opt : ""}`
+                        : "Keine Antwort",
+                    );
+                    return (
+                      <span
+                        className="inline-flex h-5 overflow-hidden rounded-full border text-[10px] font-semibold tabular-nums"
+                        title={titleParts.join(" · ")}
+                      >
+                        <span
+                          className={
+                            "flex items-center px-1.5 " +
+                            (versendet
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-rose-100 text-rose-800")
+                          }
+                        >
+                          <Mail className="size-3" />
+                        </span>
+                        <span
+                          className={
+                            "flex items-center px-1.5 border-l " +
+                            (beantwortet
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-rose-100 text-rose-800")
+                          }
+                        >
+                          <MailCheck className="size-3" />
                         </span>
                       </span>
                     );
-                  }
-                  if (prec === "postcode" || prec === "city") {
-                    return (
-                      <span
-                        className="inline-flex items-center justify-center"
-                        title={`Geocodiert (${prec === "postcode" ? "Postleitzahl" : "Ortsmitte"})`}
-                        aria-label="geocodiert"
-                      >
-                        <span className="inline-block size-2.5 rounded-full border-2 border-amber-500/70" />
-                      </span>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="objekt_ort"
-                label="Ort"
-                render={(record) =>
-                  record.objekt_ort ?? record.objekt_ortsteil ?? "—"
-                }
-              />
-              <DataTable.Col<ZvgAkte>
-                source="ag_name_raw"
-                label="Amtsgericht"
-                render={(record) => record.ag_name_raw ?? "—"}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="status"
-                label="Status"
-                render={(record) => (
-                  <Badge variant="secondary">
-                    {ZVG_STATUSES.find((s) => s.value === record.status)
-                      ?.label ?? record.status}
-                  </Badge>
-                )}
-              />
-              <DataTable.Col<ZvgAkte>
-                source="letzte_anfrage_status"
-                label="Anfrage"
-                headerClassName="w-20"
-                cellClassName="w-20 px-1"
-                disableSort
-                render={(record) => {
-                  const st = record.letzte_anfrage_status;
-                  // Keine Anfrage angelegt → keine Pille
-                  if (!st || st === "entwurf") return null;
-                  const versendet = st === "gesendet" || st === "beantwortet";
-                  const beantwortet = st === "beantwortet";
-                  const datum = record.letzte_anfrage_am
-                    ? new Date(record.letzte_anfrage_am).toLocaleDateString(
-                        "de-DE",
-                        { day: "2-digit", month: "2-digit", year: "2-digit" },
-                      )
-                    : "";
-                  const opt = record.letzte_anfrage_option;
-                  const titleParts: string[] = [];
-                  titleParts.push(
-                    versendet
-                      ? `Anfrage versendet${datum ? " am " + datum : ""}`
-                      : "Anfrage nicht versendet",
-                  );
-                  titleParts.push(
-                    beantwortet
-                      ? `Antwort eingegangen${opt ? " · Option " + opt : ""}`
-                      : "Keine Antwort",
-                  );
-                  return (
-                    <span
-                      className="inline-flex h-5 overflow-hidden rounded-full border text-[10px] font-semibold tabular-nums"
-                      title={titleParts.join(" · ")}
-                    >
-                      <span
-                        className={
-                          "flex items-center px-1.5 " +
-                          (versendet
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-rose-100 text-rose-800")
-                        }
-                      >
-                        <Mail className="size-3" />
-                      </span>
-                      <span
-                        className={
-                          "flex items-center px-1.5 border-l " +
-                          (beantwortet
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-rose-100 text-rose-800")
-                        }
-                      >
-                        <MailCheck className="size-3" />
-                      </span>
-                    </span>
-                  );
-                }}
-              />
-            </DataTable>
-          </Card>
-        </ViewSwitchedContent>
+                  }}
+                />
+              </DataTable>
+            </Card>
+          </div>
+        ) : (
+          <ZvgAkteMap />
+        )}
       </div>
     </div>
   );
@@ -567,12 +599,6 @@ const ViewToggle = () => {
       </button>
     </div>
   );
-};
-
-const ViewSwitchedContent = ({ children }: { children: React.ReactNode }) => {
-  const [view] = useViewMode();
-  if (view === "map") return <ZvgAkteMap />;
-  return <>{children}</>;
 };
 
 type CountMap = Record<string, number>;
