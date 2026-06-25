@@ -1080,17 +1080,17 @@ const ZvgAkteListFilter = () => {
       </FilterCategory>
 
       <FilterCategory label="Quelle" icon={<Globe2 />}>
-        {/* zvg.com-zids sind numerisch (lexikalisch < 'p'), Portal-zids beginnen mit 'p'. */}
+        {/* Echte Mehrfach-Quelle über zvg_akte.quellen (Array, via zvg_akte_quelle gepflegt). */}
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="ZVG.com"
-          value={{ "zid@lt": "p" }}
+          value={{ "quellen@cs": "{zvg.com}" }}
           size={isMobile ? "lg" : undefined}
         />
         <ToggleFilterButton
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="ZVG-Portal.de"
-          value={{ "zid@gte": "p" }}
+          value={{ "quellen@cs": "{zvg-portal.de}" }}
           size={isMobile ? "lg" : undefined}
         />
       </FilterCategory>
