@@ -1005,6 +1005,22 @@ const ZvgAkteListFilter = () => {
         />
       </FilterCategory>
 
+      <FilterCategory label="Quelle" icon={<Globe2 />}>
+        {/* zvg.com-zids sind numerisch (lexikalisch < 'p'), Portal-zids beginnen mit 'p'. */}
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="ZVG.com"
+          value={{ "zid@lt": "p" }}
+          size={isMobile ? "lg" : undefined}
+        />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="ZVG-Portal.de"
+          value={{ "zid@gte": "p" }}
+          size={isMobile ? "lg" : undefined}
+        />
+      </FilterCategory>
+
       <FilterCategory label="Status" icon={<TrendingUp />}>
         {ZVG_STATUSES.map((status) => (
           <StatusTriToggle
