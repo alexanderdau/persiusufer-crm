@@ -17,7 +17,7 @@ import {
   Heart,
   Image as ImageIcon,
   ImageOff,
-  List,
+  List as ListIcon,
   Mail,
   MailCheck,
   Map as MapIcon,
@@ -541,7 +541,7 @@ const ViewToggle = () => {
             : "hover:bg-muted/50 text-muted-foreground")
         }
       >
-        <List className="size-4" />
+        <ListIcon className="size-4" />
         Liste
       </button>
       <button
