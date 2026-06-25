@@ -1093,6 +1093,12 @@ const ZvgAkteListFilter = () => {
           value={{ "quellen@cs": "{zvg-portal.de}" }}
           size={isMobile ? "lg" : undefined}
         />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="UNIKA"
+          value={{ "quellen@cs": "{zwangsversteigerung.de}" }}
+          size={isMobile ? "lg" : undefined}
+        />
       </FilterCategory>
 
       <FilterCategory label="Status" icon={<TrendingUp />}>
