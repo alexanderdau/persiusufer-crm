@@ -28,7 +28,10 @@ const Header = () => {
     currentPath = "/zvg_akte";
   } else if (matchPath("/kleinanzeigen_grundstueck/*", location.pathname)) {
     currentPath = "/kleinanzeigen_grundstueck";
-  } else if (matchPath("/admin/*", location.pathname) || matchPath("/admin", location.pathname)) {
+  } else if (
+    matchPath("/admin/*", location.pathname) ||
+    matchPath("/admin", location.pathname)
+  ) {
     currentPath = "/admin";
   } else if (matchPath("/zvg_anfrage/*", location.pathname)) {
     currentPath = "/zvg_anfrage";
@@ -38,7 +41,7 @@ const Header = () => {
 
   return (
     <>
-      <nav className="grow">
+      <nav className="grow sticky top-0 z-30">
         <header className="bg-secondary">
           <div className="px-4">
             <div className="flex justify-between items-center flex-1">
@@ -99,16 +102,22 @@ const Header = () => {
                     isActive={currentPath === "/zvg_anfrage"}
                   />
                   <NavigationTab
-                    label={translate("resources.kleinanzeigen_grundstueck.name", {
-                      smart_count: 2,
-                    })}
+                    label={translate(
+                      "resources.kleinanzeigen_grundstueck.name",
+                      {
+                        smart_count: 2,
+                      },
+                    )}
                     to="/kleinanzeigen_grundstueck"
                     isActive={currentPath === "/kleinanzeigen_grundstueck"}
                   />
                   <NavigationTab
                     label="Admin"
                     to="/admin"
-                    isActive={typeof currentPath === "string" && currentPath.startsWith("/admin")}
+                    isActive={
+                      typeof currentPath === "string" &&
+                      currentPath.startsWith("/admin")
+                    }
                   />
                 </nav>
               </div>

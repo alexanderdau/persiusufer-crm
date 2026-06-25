@@ -45,6 +45,7 @@ import {
 import { ZvgAkteMap } from "./ZvgAkteMap";
 import { useViewMode } from "./useViewMode";
 import { ExportButton } from "@/components/admin/export-button";
+import { ListPagination } from "@/components/admin/list-pagination";
 import { states } from "../companies/states";
 import { getSupabaseClient } from "../providers/supabase/supabase";
 
@@ -117,6 +118,7 @@ const ZvgAkteList = () => {
       perPage={25}
       sort={{ field: "termin", order: "ASC" }}
       exporter={false}
+      pagination={false}
       actions={
         <div className="flex items-center gap-2">
           <BatchAnfrageButton />
@@ -132,13 +134,14 @@ const ZvgAkteList = () => {
 const ZvgAkteListLayout = () => {
   const { isPending } = useListContext();
   const [preview, setPreview] = useStore<boolean>("zvgakte_preview", false);
+  const [view] = useViewMode();
   if (isPending) return null;
 
   return (
     <div className="flex flex-row gap-8">
       <ZvgAkteListFilter />
       <div className="w-full flex flex-col gap-4">
-        <div className="flex gap-2 items-center">
+        <div className="sticky top-[46px] z-20 bg-background flex gap-2 items-center py-2 -mt-2 border-b">
           <ViewToggle />
           <button
             type="button"
@@ -155,6 +158,11 @@ const ZvgAkteListLayout = () => {
             <ImageIcon className="size-4" />
             Vorschau
           </button>
+          {view === "list" ? (
+            <div className="ml-auto">
+              <ListPagination rowsPerPageOptions={[10, 25, 50, 100]} />
+            </div>
+          ) : null}
         </div>
         <ViewSwitchedContent>
           <Card className="py-0">
