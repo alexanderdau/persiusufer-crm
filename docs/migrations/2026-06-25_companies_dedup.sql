@@ -54,12 +54,6 @@ select cc.id as canon, l.id as loser, l.zvg_portal_ag_id as l_pid
 from ranked cc join ranked l using(name)
 where cc.rn = 1 and l.rn > 1;
 
--- Portal-ID auf canon sichern (falls nur ein Verlierer sie hat)
-update companies c
-  set zvg_portal_ag_id = m.l_pid
-from _cmap m
-where c.id = m.canon and c.zvg_portal_ag_id is null and m.l_pid is not null;
-
 -- Constraint kurz droppen (sonst Kollision beim Umhängen)
 alter table zvg_akte drop constraint if exists zvg_akte_aznorm_ag_uniq;
 
@@ -71,6 +65,11 @@ update zvg_akte    x set ag_company_id = m.canon from _cmap m where x.ag_company
 
 -- Verlierer-Companies löschen
 delete from companies c using _cmap m where c.id = m.loser;
+
+-- Portal-ID auf canon ziehen (NACH dem Löschen → kollisionsfrei, l_pid aus _cmap)
+update companies c set zvg_portal_ag_id = m.l_pid
+from _cmap m
+where c.id = m.canon and c.zvg_portal_ag_id is null and m.l_pid is not null;
 
 -- ───────────────────────── B) Akten-Merge (neu kollidierend) ─────────────────────────
 create temp table _akmap on commit drop as
@@ -105,10 +104,9 @@ update zvg_akte c set
   vkw_eur_zvg_portal  = coalesce(c.vkw_eur_zvg_portal, l.vkw_eur_zvg_portal),
   zvg_portal_land_abk = coalesce(c.zvg_portal_land_abk, l.zvg_portal_land_abk),
   vkw_eur             = coalesce(c.vkw_eur, l.vkw_eur),
-  termin              = coalesce(c.termin, l.termin),
-  -- (3) Status-Konflikt konservativ:
-  status      = case when 'aufgehoben' in (c.status, l.status) then 'aufgehoben' else c.status end,
-  stop_reason = coalesce(c.stop_reason, l.stop_reason)
+  termin              = coalesce(c.termin, l.termin)
+  -- (3) Status/stop_reason: canon behält seinen Status (keine potenziell aktiven
+  --     Termine verstecken). Live-Ingester setzen 'aufgehoben' bei echtem terminAufgehoben.
 from _akmap m join zvg_akte l on l.zid = m.loser
 where c.zid = m.canon;
 
@@ -146,6 +144,17 @@ from _akmap m where c.zid = m.canon;
 alter table zvg_akte add constraint zvg_akte_aznorm_ag_uniq unique (az_norm, ag_company_id);
 
 commit;
+
+-- ───────────────────────── (3) Status-Korrektur (nach commit) ─────────────────────────
+-- Gemergte Cross-Portal-Akten mit ZUKÜNFTIGEM Termin, die einen 'neu'-Zwilling
+-- hatten: auf 'neu' setzen. (Portal hatte nur einen ALTEN Termin aufgehoben;
+-- zvg.com führt den neuen aktiven Termin -> Termin verlegt, nicht abgesagt.)
+-- Verhindert das Verstecken aktiver Termine.
+update zvg_akte a set status='neu', stop_reason=null
+where a.status='aufgehoben' and a.termin > now()
+  and a.quellen @> '{zvg.com}' and a.quellen @> '{zvg-portal.de}'
+  and exists (select 1 from _dedup_backup_zvg_akte_20260625 b
+             where b.az_norm=a.az_norm and b.status='neu' and b.zid<>a.zid);
 
 -- ───────────────────────── Akzeptanz (nach commit prüfen) ─────────────────────────
 -- select count(*) from (select name from companies where sector='Amtsgericht'
