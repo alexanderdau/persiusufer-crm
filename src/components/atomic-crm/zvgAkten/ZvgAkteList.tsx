@@ -191,7 +191,7 @@ const ZvgAkteListLayout = () => {
           </div>
         </div>
         {isList ? (
-          <div className="flex-1 min-h-0 overflow-y-auto [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-card">
+          <div className="flex-1 min-h-0 overflow-y-auto [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-card [&_thead_th]:border-b [&_thead_th]:border-border">
             <Card className="py-0">
               <DataTable<ZvgAkte>
                 rowClick="show"
