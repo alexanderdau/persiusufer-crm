@@ -152,6 +152,20 @@ async function upsertDokument(
   if (error) console.error("upsertDokument", zid, storage_path, error.message);
 }
 
+// Quelle-Zeile pflegen (Trigger aktualisiert zvg_akte.quellen).
+async function upsertQuelle(zid: string, externeId: string) {
+  const { error } = await supabase.from("zvg_akte_quelle").upsert(
+    {
+      zid,
+      quelle: "zvg.com",
+      externe_id: externeId,
+      last_seen: new Date().toISOString(),
+    },
+    { onConflict: "zid,quelle" },
+  );
+  if (error) console.error("upsertQuelle", zid, error.message);
+}
+
 // ─────────────────────────── Akte → DB-Row ───────────────────────────
 const SLIM_KEYS = [
   "id",
@@ -406,6 +420,8 @@ Deno.serve(async (req) => {
             .eq("zid", existingZid);
           if (error) stats.errors++;
           else stats.updated++;
+          // zvg.com als Quelle eintragen (self-heal: ergänzt gemergte p-zid-Akten)
+          await upsertQuelle(existingZid, newZid);
           if (row._termin_aufgehoben) aufgehobenExisting.push(existingZid);
         } else {
           // NEU: Details holen (budgetabhängig), dann inserten.
@@ -431,6 +447,7 @@ Deno.serve(async (req) => {
             stats.inserted++;
             matchMap.set(row.az_norm + "|" + row.ag_company_id, newZid);
             zidSet.add(newZid);
+            await upsertQuelle(newZid, newZid);
             // Dokument-Zeilen jetzt (FK auf zvg_akte.zid erfüllt)
             for (const d of row._docs ?? [])
               await upsertDokument(
