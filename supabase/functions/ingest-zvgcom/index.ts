@@ -136,21 +136,19 @@ async function upsertDokument(
   storage_path: string,
   reihenfolge: number,
 ) {
-  const { error } = await supabase
-    .from("zvg_akte_dokumente")
-    .upsert(
-      {
-        zid,
-        art,
-        titel,
-        storage_path,
-        bucket: DOCUMENTS_BUCKET,
-        mime_type: "application/pdf",
-        source: "zvg.com",
-        reihenfolge,
-      },
-      { onConflict: "zid,storage_path" },
-    );
+  const { error } = await supabase.from("zvg_akte_dokumente").upsert(
+    {
+      zid,
+      art,
+      titel,
+      storage_path,
+      bucket: DOCUMENTS_BUCKET,
+      mime_type: "application/pdf",
+      source: "zvg.com",
+      reihenfolge,
+    },
+    { onConflict: "zid,storage_path" },
+  );
   if (error) console.error("upsertDokument", zid, storage_path, error.message);
 }
 
@@ -229,6 +227,8 @@ async function enrichDetails(row: any) {
     getGalleryPics: gal,
   };
   row.detail_fetched_at = new Date().toISOString();
+  // Dokument-Zeilen erst NACH dem Akte-Insert schreiben (FK zvg_akte_dokumente.zid).
+  row._docs = [];
 
   if (j && typeof j === "object") {
     row.objektart = ((j.Objektart || "") as string).trim() || null;
@@ -257,7 +257,7 @@ async function enrichDetails(row: any) {
       );
       if (saved) {
         row[`${art}_path`] = saved;
-        await upsertDokument(zid, art, titel, saved, reihenfolge);
+        row._docs.push({ art, titel, storage_path: saved, reihenfolge });
       }
     }
   }
@@ -269,7 +269,12 @@ async function enrichDetails(row: any) {
       "application/pdf",
     );
     if (saved)
-      await upsertDokument(zid, "gutachten", "Gutachten (kostenlos)", saved, 5);
+      row._docs.push({
+        art: "gutachten",
+        titel: "Gutachten (kostenlos)",
+        storage_path: saved,
+        reihenfolge: 5,
+      });
   }
   if (pic && typeof pic === "object" && pic.path) {
     const saved = await downloadUpload(
@@ -426,6 +431,15 @@ Deno.serve(async (req) => {
             stats.inserted++;
             matchMap.set(row.az_norm + "|" + row.ag_company_id, newZid);
             zidSet.add(newZid);
+            // Dokument-Zeilen jetzt (FK auf zvg_akte.zid erfüllt)
+            for (const d of row._docs ?? [])
+              await upsertDokument(
+                newZid,
+                d.art,
+                d.titel,
+                d.storage_path,
+                d.reihenfolge,
+              );
           }
         }
       } catch (_) {
