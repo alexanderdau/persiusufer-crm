@@ -672,6 +672,74 @@ const useBundeslandCounts = (
   return { counts, loading };
 };
 
+type AgCount = { id: number; name: string; count: number };
+
+// Amtsgerichte mit Akten (respektiert die übrigen Filter, z. B. Bundesland).
+const useAmtsgerichtCounts = (
+  filterValues: Record<string, unknown>,
+): AgCount[] => {
+  const filterSig = useMemo(
+    () =>
+      JSON.stringify(
+        Object.fromEntries(
+          Object.entries(filterValues).filter(([k]) => k !== "ag_company_id"),
+        ),
+      ),
+    [filterValues],
+  );
+  const [courts, setCourts] = useState<AgCount[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const sb = getSupabaseClient();
+    const otherFilters = JSON.parse(filterSig) as Record<string, unknown>;
+    (async () => {
+      const { data: comps } = await sb
+        .from("companies")
+        .select("id,name")
+        .eq("sector", "Amtsgericht");
+      const nameMap = new Map<number, string>(
+        (comps ?? []).map((c: { id: number; name: string }) => [
+          c.id,
+          c.name.replace(/^Amtsgericht /, ""),
+        ]),
+      );
+      // Alle passenden ag_company_id paginiert holen (PostgREST kappt bei 1000)
+      const tally = new Map<number, number>();
+      for (let off = 0; ; off += 1000) {
+        let q = sb
+          .from("zvg_akte")
+          .select("ag_company_id")
+          .not("ag_company_id", "is", null)
+          .range(off, off + 999);
+        q = applyFilters(q, otherFilters, ["ag_company_id"]);
+        const { data } = await q;
+        if (!data || !data.length) break;
+        for (const r of data as { ag_company_id: number }[])
+          tally.set(r.ag_company_id, (tally.get(r.ag_company_id) ?? 0) + 1);
+        if (data.length < 1000) break;
+      }
+      const list: AgCount[] = [...tally.entries()]
+        .map(([id, count]) => ({
+          id,
+          name: nameMap.get(id) ?? `AG ${id}`,
+          count,
+        }))
+        .sort(
+          (a, b) => b.count - a.count || a.name.localeCompare(b.name, "de"),
+        );
+      if (!cancelled) setCourts(list);
+    })().catch(() => {
+      if (!cancelled) setCourts([]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [filterSig]);
+
+  return courts;
+};
+
 const StatusTriToggle = ({
   statusValue,
   label,
@@ -989,6 +1057,7 @@ const ZvgAkteListFilter = () => {
 
   const { filterValues } = useListContext();
   const { counts: blCounts } = useBundeslandCounts(filterValues || {});
+  const agCounts = useAmtsgerichtCounts(filterValues || {});
 
   return (
     <ResponsiveFilters
@@ -1117,6 +1186,25 @@ const ZvgAkteListFilter = () => {
               />
             );
           })}
+      </FilterCategory>
+
+      <FilterCategory label="Amtsgericht" icon={<Gavel />}>
+        {agCounts.map((c) => (
+          <ToggleFilterButton
+            key={c.id}
+            className="w-auto md:w-full justify-between h-10 md:h-8"
+            label={
+              <span className="flex items-center justify-between w-full gap-2">
+                <span className="truncate">{c.name}</span>
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                  {c.count}
+                </span>
+              </span>
+            }
+            value={{ ag_company_id: c.id }}
+            size={isMobile ? "lg" : undefined}
+          />
+        ))}
       </FilterCategory>
     </ResponsiveFilters>
   );
