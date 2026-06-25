@@ -1,7 +1,10 @@
 # Handoff: Vereinheitlichung der ZVG-Ingestion auf den Server-seitigen Weg
 
 **Erstellt:** 2026-06-25 · **Für:** Claude Code · **Supabase-Projekt:** `ujiiaqvwpnniaasdhyrb` (eu-west-1)
-**Status:** **Phase 1 ausgeführt & verifiziert (2026-06-25)** — 61 Dubletten gemergt, `UNIQUE(az_norm, ag_company_id)` aktiv, Backup in `_merge_backup_zvg_akte_dups_20260625` (122 Zeilen). Phase 2 (`ingest-zvgcom`) offen, Phase 3 (Cowork-Cutover) danach.
+**Status:** **Phase 1 + 2 ausgeführt & verifiziert (2026-06-25).**
+- Phase 1: 61 Dubletten gemergt, `UNIQUE(az_norm, ag_company_id)` aktiv, Backup `_merge_backup_zvg_akte_dups_20260625` (122 Zeilen).
+- Phase 2: `ingest-zvgcom` live (verify_jwt=false, Secret `INGEST_ZVGCOM_TOKEN`), State `zvgcom_ingest_state`, pg_cron `ingest-zvgcom-cron` (jobid 9, `*/5 * * * *`, batch=2). End-to-end getestet (Listing+Detail+Docs+Bilder, 0 Fehler, Cross-Portal-Match via azNormV2).
+- **Phase 3 (Cowork-Cutover) jetzt bereit** — Cowork-Seite kann `marktscan-zvg`, `marktscan-zvg-backfill`, `marktscan-portal-backfill` abschalten, sobald der Dauerbetrieb über ein paar Cron-Läufe bestätigt ist.
 
 ---
 
@@ -236,7 +239,7 @@ Bis dahin laufen sie weiter, damit die Erfassung **nie aussetzt**. Claude Code m
 2. [x] `zvg_akte_detail`/`zvg_akte_letzte_anfrage` Tabelle-vs-View klären; Favoriten-Unique prüfen. — beide **Views** (nicht angefasst); Favoriten-PK `(zid, sales_id)` → Dedup auf `sales_id`.
 3. [x] Phase-1-Migration ausgeführt (atomar, mit Backup). Hinweis: `zvg_portal_id` ist UNIQUE → Reihenfolge angepasst (Verlierer erst löschen, dann Portal-Felder auf canon ziehen).
 4. [x] Akzeptanz Phase 1 geprüft: Restdubletten 0, Constraint aktiv, 0 verwaiste Kinder, Akten 3.631→3.570.
-5. [ ] `ingest-zvgcom` implementieren (Template `portal-ingest` + Logik `marktscan_zvg_v2.py`).
-6. [ ] Manuell testen (1 BL), dann pg_cron aktivieren.
-7. [ ] Akzeptanz Phase 2 über mehrere Cron-Läufe prüfen.
+5. [x] `ingest-zvgcom` implementiert (Template `portal-ingest` + Logik `marktscan_zvg_v2.py`). Fix: Doc-Zeilen erst nach Akte-Insert (FK).
+6. [x] Manuell getestet (1 BL + Voll-Scan) → pg_cron `ingest-zvgcom-cron` aktiv (`*/5`, batch=2).
+7. [ ] Akzeptanz über mehrere Cron-Läufe beobachten (Cursor wandert, 0 Fehler, keine neuen Dubletten).
 8. [ ] Cowork-Seite informieren → Cutover Phase 3 → Verifikation.
