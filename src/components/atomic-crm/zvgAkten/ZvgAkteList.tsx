@@ -191,10 +191,11 @@ const ZvgAkteListLayout = () => {
           </div>
         </div>
         {isList ? (
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-card">
             <Card className="py-0">
               <DataTable<ZvgAkte>
                 rowClick="show"
+                className="[&>div]:overflow-x-visible"
                 bulkActionButtons={<BulkBatchAnfrageButton />}
               >
                 {preview ? (
