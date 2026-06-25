@@ -693,6 +693,11 @@ const useAmtsgerichtCounts = (
     let cancelled = false;
     const sb = getSupabaseClient();
     const otherFilters = JSON.parse(filterSig) as Record<string, unknown>;
+    // Nur laden, wenn ein Bundesland gewählt ist (sonst wäre die Liste sinnlos lang).
+    if (!otherFilters.state_abbr) {
+      setCourts([]);
+      return;
+    }
     (async () => {
       const { data: comps } = await sb
         .from("companies")
@@ -1188,24 +1193,26 @@ const ZvgAkteListFilter = () => {
           })}
       </FilterCategory>
 
-      <FilterCategory label="Amtsgericht" icon={<Gavel />}>
-        {agCounts.map((c) => (
-          <ToggleFilterButton
-            key={c.id}
-            className="w-auto md:w-full justify-between h-10 md:h-8"
-            label={
-              <span className="flex items-center justify-between w-full gap-2">
-                <span className="truncate">{c.name}</span>
-                <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-                  {c.count}
+      {filterValues?.state_abbr ? (
+        <FilterCategory label="Amtsgericht" icon={<Gavel />}>
+          {agCounts.map((c) => (
+            <ToggleFilterButton
+              key={c.id}
+              className="w-auto md:w-full justify-between h-10 md:h-8"
+              label={
+                <span className="flex items-center justify-between w-full gap-2">
+                  <span className="truncate">{c.name}</span>
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                    {c.count}
+                  </span>
                 </span>
-              </span>
-            }
-            value={{ ag_company_id: c.id }}
-            size={isMobile ? "lg" : undefined}
-          />
-        ))}
-      </FilterCategory>
+              }
+              value={{ ag_company_id: c.id }}
+              size={isMobile ? "lg" : undefined}
+            />
+          ))}
+        </FilterCategory>
+      ) : null}
     </ResponsiveFilters>
   );
 };
