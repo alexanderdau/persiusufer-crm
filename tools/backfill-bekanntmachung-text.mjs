@@ -21,12 +21,14 @@ const SRK = env.SUPABASE_SERVICE_ROLE_KEY;
 const H = { apikey: SRK, Authorization: `Bearer ${SRK}` };
 const TMP = mkdtempSync(join(tmpdir(), "bekbf-"));
 const TEXT_MIN = 300;
+const ART = process.argv[2] || "bekanntmachung";
+console.log(`art = ${ART}`);
 
 async function listDocs() {
   const out = [];
   for (let off = 0; ; off += 1000) {
     const r = await fetch(
-      `${URL}/rest/v1/zvg_akte_dokumente?art=eq.bekanntmachung&volltext=is.null&select=zid,storage_path&order=zid&limit=1000&offset=${off}`,
+      `${URL}/rest/v1/zvg_akte_dokumente?art=eq.${ART}&volltext=is.null&select=zid,storage_path&order=zid&limit=1000&offset=${off}`,
       { headers: H },
     );
     const rows = await r.json();
@@ -57,7 +59,7 @@ async function one(doc, idx) {
     }
     if (txt.replace(/\s/g, "").length <= TEXT_MIN) return "scan"; // -> Haiku-Fallback
     const up = await fetch(
-      `${URL}/rest/v1/zvg_akte_dokumente?zid=eq.${encodeURIComponent(doc.zid)}&art=eq.bekanntmachung`,
+      `${URL}/rest/v1/zvg_akte_dokumente?zid=eq.${encodeURIComponent(doc.zid)}&art=eq.${ART}`,
       {
         method: "PATCH",
         headers: { ...H, "Content-Type": "application/json", Prefer: "return=minimal" },
