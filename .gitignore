@@ -56,3 +56,5 @@ node_modules/
 
 # Diagnose-Report (generiert)
 tools/.bekanntmachung-text-report.json
+tools/.versteigerungspool-diff.json
+tools/.versteigerungspool-ingest.json
