@@ -144,22 +144,15 @@ function listingText(blob: string) {
   return txt || null;
 }
 
-async function get(url: string, referer?: string) {
-  const r = await fetch(url, {
-    headers: {
-      "User-Agent": UA,
-      ...AC,
-      ...(referer ? { Referer: referer } : {}),
-    },
-  });
-  return await r.text();
-}
 async function searchLand(land: string) {
+  // WICHTIG: ger_name="-- Alle Amtsgerichte --" + ger_id="0" exakt wie das
+  // Formular senden — nur dann liefert der Server den Gerichtsnamen je Eintrag
+  // (<b>{Gericht} in {Bundesland}</b>). Mit leerem ger_name bleibt er leer.
   const form = new URLSearchParams({
-    ger_name: "",
+    ger_name: "-- Alle Amtsgerichte --",
     order_by: "2",
     land_abk: land,
-    ger_id: "",
+    ger_id: "0",
     az1: "",
     az2: "",
     az3: "",
@@ -200,10 +193,15 @@ async function searchLand(land: string) {
     const mUpd = blob.match(
       /letzte Aktualisierung (\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})/,
     );
+    // Gerichtsname aus dem Listing: <b>{Gericht} in {Bundesland}</b>
+    const mGer = blob.match(
+      /Amtsgericht<\/td><td[^>]*><b>\s*(.+?)\s+in\s+[^<]+<\/b>/,
+    );
     const azRaw = unescapeHtml(mAz[1]);
     out.push({
       zvg_portal_id: parseInt(mId[1]),
       land_abk: mId[2],
+      gericht: mGer ? unescapeHtml(mGer[1]) : null,
       az_raw: azRaw,
       az_norm: azNormV2(azRaw),
       objektart: mObj ? unescapeHtml(mObj[1]) : null,
@@ -217,18 +215,6 @@ async function searchLand(land: string) {
     });
   }
   return out;
-}
-async function courtFromDetail(
-  zvgId: number,
-  land: string,
-): Promise<string | null> {
-  const h = await get(
-    BASE + `/index.php?button=showZvg&zvg_id=${zvgId}&land_abk=${land}`,
-    BASE + "/index.php?button=Suchen",
-  );
-  const t = unescapeHtml(h.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ");
-  const m = t.match(/Ort der Versteigerung:\s*Amtsgericht\s+(.+?)\s*,/);
-  return m ? m[1].trim() : null;
 }
 
 async function loadAll(table: string, select: string, filter = "") {
@@ -305,17 +291,10 @@ Deno.serve(async (req) => {
       let target = pidHit ?? (existing.length === 1 ? existing[0] : null);
 
       if (!target) {
-        // 3) neu/mehrdeutig -> Detail -> Gericht
-        if (Date.now() - t0 > budgetMs) break outer;
-        let court: string | null = null;
-        try {
-          court = await courtFromDetail(e.zvg_portal_id, land);
-        } catch (_) {
-          st.errors++;
-        }
-        const comp = court
+        // 3) neu/mehrdeutig -> Gericht direkt aus dem Listing (e.gericht)
+        const comp = e.gericht
           ? byCourt.get(
-              ("amtsgericht " + court)
+              ("amtsgericht " + e.gericht)
                 .toLowerCase()
                 .replace(/\s+/g, " ")
                 .trim(),
