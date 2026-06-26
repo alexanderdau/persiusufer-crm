@@ -1,0 +1,22 @@
+-- ============================================================================
+-- zvg_akte: Roh-Texte aus zvg-portal.de (Übersicht + Detail) speichern
+-- Erstellt: 2026-06-25 · Projekt ujiiaqvwpnniaasdhyrb
+--
+-- ZWECK: Den vollständigen, lesbaren Text je Akte verlustfrei sichern, damit
+-- spätere Auswertung (u. a. per LLM/Haiku) strukturierte Felder daraus ziehen
+-- kann, ohne erneut zu scrapen.
+--
+--  • portal_listing_text — Übersichts-Eintrag (von AZ bis amtliche Bekanntmachung).
+--    Bewahrt Mehrposten-Verkehrswerte ("lfd. Nr. 1 - 114.000,- …"), Gesamt- vs.
+--    Einzelwerte, fehlende PLZ (00000), Kurzbeschreibungen.
+--    Befüllung: portal-ingest (Listing-Scan, Insert + Update).
+--
+--  • portal_detail_text — Detailseite (showZvg). Enthält Felder, die das Listing
+--    NICHT hat: "Art der Versteigerung" (Forderung vs. Aufhebung der Gemeinschaft
+--    -> is_teilung), Grundbuch, volle Sachverständigen-Beschreibung, Exposé-Link.
+--    Befüllung: separater, gedrosselter Enrichment-Lauf (1 Request je Akte).
+--
+-- Beide additiv, nullable -> kein Risiko für Bestandsdaten.
+-- ============================================================================
+alter table zvg_akte add column if not exists portal_listing_text text;
+alter table zvg_akte add column if not exists portal_detail_text text;

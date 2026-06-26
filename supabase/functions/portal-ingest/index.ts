@@ -76,6 +76,27 @@ function parseVkw(s: string | null) {
   const f = parseFloat(t);
   return isNaN(f) ? null : f;
 }
+// Währungsförmige Zahl: Tausenderpunkte (60.000 / 1.790.000,00 / 382.000,-)
+// ODER Dezimalbetrag (3.380,00). KEINE blanken Ziffernläufe — die griffen sonst
+// Zähler/Referenzen wie "lfd. Nr. 1" oder "Blatt 4001".
+const VKW_NUM = /\d{1,3}(?:\.\d{3})+(?:,\d+|,-+)?|\d+,\d{2}/;
+// Verkehrswert aus dem Zell-HTML ziehen. Robust gegen <b>WERT</b> (NRW),
+// <b><p>WERT</p></b> (BB), Word-Tabellen-Paste (BY) und Mehrposten/Teilflächen.
+// Bei "Gesamt(verkehrs)wert: X" wird X bevorzugt (Summe statt erster Position),
+// sonst die erste währungsförmige Zahl. Hartnäckige Fälle bleiben über
+// portal_listing_text/portal_detail_text der späteren Auswertung erhalten.
+function parseVkwCell(cellHtml: string | null) {
+  if (!cellHtml) return null;
+  const txt = unescapeHtml(
+    cellHtml.replace(/<[^>]+>/g, " ").replace(/&#128;|&euro;/gi, "€"),
+  );
+  const g = txt.match(
+    new RegExp("Gesamt\\w*wert[:\\s]*(" + VKW_NUM.source + ")", "i"),
+  );
+  const m = g || txt.match(VKW_NUM);
+  if (!m) return null;
+  return parseVkw((g ? m[1] : m[0]).replace(/,-+$/, ""));
+}
 function parseTermin(s: string | null) {
   if (!s) return null;
   const m = s.match(
@@ -105,6 +126,22 @@ function unescapeHtml(s: string) {
     .trim();
 }
 
+// Gesamter Übersichtstext eines Eintrags: von AZ-Beginn bis zur amtlichen
+// Bekanntmachung (Eintrags-Ende). Tags raus, lesbar normalisiert. Bewahrt den
+// Rohinhalt (z. B. Mehrposten-Verkehrswerte, fehlende PLZ) für spätere Auswertung.
+function listingText(blob: string) {
+  const end = blob.indexOf("<!--Aktenzeichen--->");
+  const entry = (end > 0 ? blob.slice(0, end) : blob)
+    .replace(/^[^>]*>/, "") // Rest des <a …>-Tags entfernen
+    .replace(/<[^>]+>/g, " ") // Tags entfernen
+    .replace(/&#128;|&euro;/gi, "€");
+  const txt = unescapeHtml(entry)
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+  return txt || null;
+}
+
 function parseListing(htmlText: string) {
   const parts = htmlText
     .split("<a target=blank_ href=index.php?button=showZvg")
@@ -115,9 +152,17 @@ function parseListing(htmlText: string) {
     const mAz = blob.match(/<nobr>([\d\sK\/]+?)&nbsp;\(Detailansicht\)/);
     if (!mId || !mAz) continue;
     const mObj = blob.match(/<b>([^<]+?)<!--Lage--->:<\/b>\s*([^<]+?)<\/td>/);
-    const mVkw = blob.match(/Verkehrswert[\s\S]*?<p>([^<]+?)<\/p>/);
+    // Verkehrswert: Inhalt der Wert-Zelle bis zur nächsten strukturellen Zeile.
+    // Strukturzeilen nutzen <TR> (groß); eingefügte Word-Tabellen nutzen <tr>
+    // (klein) und werden so nicht als Grenze missverstanden. Greift bei
+    // <b>WERT</b> (NRW), <b><p>WERT</p></b> (z. B. BB) und Tabellen-Paste (BY).
+    const mVkw = blob.match(/Verkehrswert in[\s\S]*?<\/td>([\s\S]*?)<TR/);
     const mTer = blob.match(
       /colspan=2>([^<]+?, \d+\. \w+ \d{4}, \d+:\d+ Uhr)<\/td>/,
+    );
+    // letzte Aktualisierung: "(letzte Aktualisierung DD-MM-YYYY HH:MM)"
+    const mUpd = blob.match(
+      /letzte Aktualisierung (\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2})/,
     );
     out.push({
       zvg_portal_id: parseInt(mId[1]),
@@ -125,8 +170,12 @@ function parseListing(htmlText: string) {
       az_raw: unescapeHtml(mAz[1]),
       objektart: mObj ? unescapeHtml(mObj[1]) : null,
       lage: mObj ? unescapeHtml(mObj[2]) : null,
-      vkw_eur: mVkw ? parseVkw(unescapeHtml(mVkw[1])) : null,
+      vkw_eur: parseVkwCell(mVkw ? mVkw[1] : null),
       termin: mTer ? parseTermin(unescapeHtml(mTer[1])) : null,
+      last_updated: mUpd
+        ? `${mUpd[3]}-${mUpd[2]}-${mUpd[1]}T${mUpd[4]}:${mUpd[5]}:00+02:00`
+        : null,
+      listing_text: listingText(blob),
     });
   }
   return out;
@@ -287,6 +336,8 @@ Deno.serve(async (req) => {
               vkw_eur_zvg_portal: c.vkw_eur,
               last_seen: new Date().toISOString(),
               _pid: c.zvg_portal_id,
+              _last_updated: c.last_updated,
+              _listing_text: c.listing_text,
             };
             // Termin nur updaten wenn aus Portal vorhanden
             if (c.termin) updateRow.termin = c.termin;
@@ -314,8 +365,9 @@ Deno.serve(async (req) => {
               termin: c.termin,
               state_abbr: ag.state_abbr,
               zvg_portal_land_abk: c.land_abk,
-              zvg_portal_last_updated: null,
+              zvg_portal_last_updated: c.last_updated,
               vkw_eur_zvg_portal: c.vkw_eur,
+              portal_listing_text: c.listing_text,
               status: "neu",
               raw_json: {
                 zvg_portal_id: c.zvg_portal_id,
@@ -364,6 +416,8 @@ Deno.serve(async (req) => {
       last_seen: u.last_seen,
     };
     if (u.termin) fields.termin = u.termin;
+    if (u._last_updated) fields.zvg_portal_last_updated = u._last_updated;
+    if (u._listing_text) fields.portal_listing_text = u._listing_text;
     // vkw_eur nur füllen wenn aktuell NULL
     if (u._fill_vkw_eur != null) {
       const { data: cur } = await supabase
