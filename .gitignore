@@ -53,3 +53,6 @@ node_modules/
 
 # Research-/Ablage-Workspace (Grundstücke, ZVG) — lokal, nicht versioniert
 /workspace/
+
+# Diagnose-Report (generiert)
+tools/.bekanntmachung-text-report.json

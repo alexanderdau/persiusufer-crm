@@ -590,6 +590,10 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/layout/AnthropicCreditBanner.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/filters/FilterCategory.tsx",
           "type": "registry:component"
         },

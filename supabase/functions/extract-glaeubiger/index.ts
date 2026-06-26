@@ -256,6 +256,10 @@ Deno.serve(async (req) => {
   if (u.searchParams.get("token") !== TOKEN)
     return new Response("forbidden", { status: 403 });
   const limit = parseInt(u.searchParams.get("limit") || "80");
+  // Standard: NUR das Portal-Feld auswerten — die amtliche Bekanntmachung nennt
+  // den Gläubiger strukturell nicht (verifiziert). include_pdf=1 aktiviert die
+  // Vision-Transkription der PDF (nur als Volltext-Cache, kein Gläubiger).
+  const includePdf = u.searchParams.get("include_pdf") === "1";
   const t0 = Date.now();
   const budgetMs = 110000;
 
@@ -285,8 +289,9 @@ Deno.serve(async (req) => {
         volltext: (d as any).volltext ?? null,
       });
 
-  // Kandidaten: Forderungsversteigerung, noch nicht extrahiert,
-  // und es gibt eine Quelle (Feld oder PDF).
+  // Kandidaten: Forderungsversteigerung, noch nicht extrahiert. Standard:
+  // nur mit Portal-Feld (= einzige Gläubiger-Quelle). Mit include_pdf zusätzlich
+  // PDF-only-Akten (Volltext-Cache).
   const akten = (
     await loadAll(
       "zvg_akte",
@@ -296,7 +301,8 @@ Deno.serve(async (req) => {
     (a: any) =>
       a.is_teilung !== true &&
       a.glaeubiger_extrahiert_am == null &&
-      ((a.glaeubiger && a.glaeubiger.trim().length > 0) || bek.has(a.zid)),
+      ((a.glaeubiger && a.glaeubiger.trim().length > 0) ||
+        (includePdf && bek.has(a.zid))),
   );
 
   const offen = akten.length;
