@@ -49,6 +49,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+/.playwright-mcp/
 
 # Research-/Ablage-Workspace (Grundstücke, ZVG) — lokal, nicht versioniert
 /workspace/
