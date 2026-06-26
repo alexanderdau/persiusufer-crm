@@ -22,6 +22,7 @@ import {
   MailCheck,
   Map as MapIcon,
   MapPin,
+  Percent,
   TrendingUp,
 } from "lucide-react";
 import { addDays } from "date-fns";
@@ -1167,6 +1168,17 @@ const ZvgAkteListFilter = () => {
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="Frei verfügbar"
           value={{ gpreis_eur: 0 }}
+          size={isMobile ? "lg" : undefined}
+        />
+      </FilterCategory>
+
+      <FilterCategory label="Wertgrenzen" icon={<Percent />}>
+        {/* Verfahren, bei denen die 5/10- und 7/10-Wertgrenzen weggefallen sind
+            (Zuschlag unter Wert möglich). Flag via portal-wertgrenzen gepflegt. */}
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Weggefallen (5/10 & 7/10)"
+          value={{ wertgrenzen_weggefallen: true }}
           size={isMobile ? "lg" : undefined}
         />
       </FilterCategory>
