@@ -22,7 +22,8 @@ Gib AUSSCHLIESSLICH JSON zurück, ohne Vor-/Nachtext:
   "sachbearbeiter": String|null,  // Ansprechpartner/Sachbearbeiter (Person), z.B. "Frau Richter"
   "telefon": String|null,         // Telefonnummer des Gläubigers/Ansprechpartners
   "az": String|null,              // Aktenzeichen/Geschäftszeichen DES GLÄUBIGERS (NICHT des Gerichts)
-  "email": String|null
+  "email": String|null,
+  "volltext": String|null         // NUR wenn ein PDF/Bild-Dokument vorliegt: wörtliche, vollständige Transkription des gesamten Dokumenttextes (alle Seiten), normalisiert (Zeilenumbrüche erhalten). Bei reinem Text-Input: null.
 }
 
 Typ-Regeln:
@@ -41,6 +42,21 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_URL")!,
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
+
+async function setCreditBlocked(msg: string) {
+  await supabase.from("app_anthropic_status").upsert({
+    id: 1,
+    credit_blocked_at: new Date().toISOString(),
+    last_error: msg.slice(0, 300),
+    updated_at: new Date().toISOString(),
+  });
+}
+async function clearCreditBlocked() {
+  await supabase
+    .from("app_anthropic_status")
+    .update({ credit_blocked_at: null, updated_at: new Date().toISOString() })
+    .eq("id", 1);
+}
 
 async function loadAll(table: string, select: string, apply?: (q: any) => any) {
   const out: any[] = [];
@@ -64,7 +80,11 @@ function parseJson(text: string): any | null {
   }
 }
 
-async function callHaiku(apiKey: string, content: any[]): Promise<any> {
+async function callHaiku(
+  apiKey: string,
+  content: any[],
+  maxTokens = 1024,
+): Promise<any> {
   const resp = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -74,7 +94,7 @@ async function callHaiku(apiKey: string, content: any[]): Promise<any> {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content }],
     }),
@@ -107,15 +127,20 @@ function clean(v: any): string | null {
   return s.length ? s.slice(0, 300) : null;
 }
 
+type Outcome = "feld" | "pdf" | "text" | "failed" | "credit";
+
 async function processAkte(
   apiKey: string,
   akte: { zid: string; az: string; glaeubiger: string | null },
-  bekPath: string | null,
-): Promise<"feld" | "pdf" | "failed"> {
+  bek: { path: string; volltext: string | null } | null,
+): Promise<Outcome> {
   let content: any[];
-  let quelle: "feld_haiku" | "pdf_haiku";
+  let quelle: "feld_haiku" | "pdf_haiku" | "text_haiku";
+  let maxTokens = 1024;
+  let visionPdf = false; // Volltext anschließend am Dokument speichern?
 
   if (akte.glaeubiger && akte.glaeubiger.trim().length > 0) {
+    // Beste, billigste Quelle: das Portal-Feld (reiner Text).
     quelle = "feld_haiku";
     content = [
       {
@@ -123,11 +148,23 @@ async function processAkte(
         text: `Aktenzeichen ${akte.az}. Portal-Feld "Informationen zum Gläubiger":\n\n${akte.glaeubiger}`,
       },
     ];
-  } else if (bekPath) {
+  } else if (bek?.volltext && bek.volltext.trim().length > 0) {
+    // Bekanntmachung wurde bereits transkribiert -> Text wiederverwenden, KEINE Vision.
+    quelle = "text_haiku";
+    content = [
+      {
+        type: "text",
+        text: `Aktenzeichen ${akte.az}. Transkribierte amtliche Bekanntmachung:\n\n${bek.volltext}`,
+      },
+    ];
+  } else if (bek?.path) {
+    // Erstkontakt mit der Scan-PDF: ein Vision-Call liefert Volltext + Felder.
     quelle = "pdf_haiku";
+    maxTokens = 4096;
+    visionPdf = true;
     const { data: blob } = await supabase.storage
       .from("zvg-documents")
-      .download(bekPath);
+      .download(bek.path);
     if (!blob) return await markFailed(akte.zid, "download_failed");
     const arr = new Uint8Array(await blob.arrayBuffer());
     if (arr.length > MAX_PDF_BYTES || arr.length < 500)
@@ -151,17 +188,37 @@ async function processAkte(
       },
       {
         type: "text",
-        text: `Aktenzeichen ${akte.az}. Extrahiere die Gläubiger-Kontaktdaten aus der amtlichen Bekanntmachung.`,
+        text: `Aktenzeichen ${akte.az}. Transkribiere die amtliche Bekanntmachung vollständig ("volltext") und extrahiere die Gläubiger-Kontaktdaten.`,
       },
     ];
   } else {
     return await markFailed(akte.zid, "no_source");
   }
 
-  const r = await callHaiku(apiKey, content);
-  if (r.error) return await markFailed(akte.zid, r.error);
+  const r = await callHaiku(apiKey, content, maxTokens);
+  if (r.error) {
+    // Credit/Billing-Fehler ist kein Akten-Fehler -> nicht markieren, Batch abbrechen.
+    if (
+      /credit balance is too low|credit_balance|insufficient.*credit/i.test(
+        r.error,
+      )
+    )
+      return "credit";
+    return await markFailed(akte.zid, r.error);
+  }
   const p = r.parsed;
   const typ = VALID_TYP.has(p.typ) ? p.typ : "sonstige";
+
+  // Volltext einmalig am Dokument cachen (nur beim Vision-Erstlauf).
+  if (visionPdf && bek?.path) {
+    const vt = typeof p.volltext === "string" ? p.volltext.trim() : "";
+    if (vt.length > 0)
+      await supabase
+        .from("zvg_akte_dokumente")
+        .update({ volltext: vt, volltext_am: new Date().toISOString() })
+        .eq("zid", akte.zid)
+        .eq("storage_path", bek.path);
+  }
 
   await supabase
     .from("zvg_akte")
@@ -176,7 +233,11 @@ async function processAkte(
       glaeubiger_extrahiert_am: new Date().toISOString(),
     })
     .eq("zid", akte.zid);
-  return quelle === "feld_haiku" ? "feld" : "pdf";
+  return quelle === "feld_haiku"
+    ? "feld"
+    : quelle === "text_haiku"
+      ? "text"
+      : "pdf";
 }
 
 async function markFailed(zid: string, err: string): Promise<"failed"> {
@@ -211,13 +272,18 @@ Deno.serve(async (req) => {
     );
   const apiKey = cfg.api_key;
 
-  // Bekanntmachungs-PDF je zid.
-  const bek = new Map<string, string>();
-  for (const d of await loadAll("zvg_akte_dokumente", "zid,storage_path", (q) =>
-    q.eq("art", "bekanntmachung"),
+  // Bekanntmachungs-PDF je zid (inkl. ggf. schon transkribiertem Volltext).
+  const bek = new Map<string, { path: string; volltext: string | null }>();
+  for (const d of await loadAll(
+    "zvg_akte_dokumente",
+    "zid,storage_path,volltext",
+    (q) => q.eq("art", "bekanntmachung"),
   ))
     if (!bek.has((d as any).zid))
-      bek.set((d as any).zid, (d as any).storage_path);
+      bek.set((d as any).zid, {
+        path: (d as any).storage_path,
+        volltext: (d as any).volltext ?? null,
+      });
 
   // Kandidaten: Forderungsversteigerung, noch nicht extrahiert,
   // und es gibt eine Quelle (Feld oder PDF).
@@ -235,9 +301,18 @@ Deno.serve(async (req) => {
 
   const offen = akten.length;
   const todo = akten.slice(0, limit);
-  const st = { offen, verarbeitet: 0, feld: 0, pdf: 0, failed: 0 };
+  const st = {
+    offen,
+    verarbeitet: 0,
+    feld: 0,
+    pdf: 0,
+    text: 0,
+    failed: 0,
+    credit_blocked: false,
+  };
 
-  for (let i = 0; i < todo.length; i += CONCURRENCY) {
+  let blocked = false;
+  for (let i = 0; i < todo.length && !blocked; i += CONCURRENCY) {
     if (Date.now() - t0 > budgetMs) break;
     const chunk = todo.slice(i, i + CONCURRENCY);
     const res = await Promise.all(
@@ -248,11 +323,24 @@ Deno.serve(async (req) => {
       ),
     );
     for (const r of res) {
+      if (r === "credit") {
+        blocked = true;
+        continue;
+      }
       st.verarbeitet++;
       if (r === "feld") st.feld++;
       else if (r === "pdf") st.pdf++;
+      else if (r === "text") st.text++;
       else st.failed++;
     }
+  }
+
+  // Status für den UI-Banner: blockiert setzen bzw. bei Erfolg löschen.
+  if (blocked) {
+    await setCreditBlocked("Anthropic: credit balance too low");
+    st.credit_blocked = true;
+  } else if (st.feld + st.pdf + st.text > 0) {
+    await clearCreditBlocked();
   }
 
   st.offen = offen - st.verarbeitet;
