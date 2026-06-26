@@ -52,13 +52,33 @@ function azNormV2(az: string) {
   return `${p}k${n}-${y}`;
 }
 
-// BL-Suche -> {az_norm: {zvg_id, file_id, land}}; mehrdeutige az_norm raus.
+function unescapeHtml(s: string) {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&szlig;/g, "ß")
+    .replace(/&auml;/g, "ä")
+    .replace(/&ouml;/g, "ö")
+    .replace(/&uuml;/g, "ü")
+    .replace(/&Auml;/g, "Ä")
+    .replace(/&Ouml;/g, "Ö")
+    .replace(/&Uuml;/g, "Ü")
+    .replace(/&#\d+;/g, " ")
+    .trim();
+}
+// Schlüssel Gericht: normalisierter Gerichtsname ("amtsgericht lübben")
+function courtKey(name: string) {
+  return ("amtsgericht " + name).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// BL-Suche (ger_name gesetzt -> Gericht je Eintrag) -> {courtKey|az_norm: {zvg_id, file_id, land}}.
+// Match per Gericht+AZ statt nur AZ -> mehrdeutige AZ lösen sich auf.
 async function searchLand(land: string) {
   const form = new URLSearchParams({
-    ger_name: "",
+    ger_name: "-- Alle Amtsgerichte --",
     order_by: "2",
     land_abk: land,
-    ger_id: "",
+    ger_id: "0",
     az1: "",
     az2: "",
     az3: "",
@@ -85,7 +105,6 @@ async function searchLand(land: string) {
   });
   const html = await r.text();
   const map = new Map<string, any>();
-  const cnt = new Map<string, number>();
   for (const blob of html
     .split("<a target=blank_ href=index.php?button=showZvg")
     .slice(1)) {
@@ -93,12 +112,13 @@ async function searchLand(land: string) {
     const mAnh = blob.match(
       /\?button=showAnhang&land_abk=(\w+)&file_id=(\d+)&zvg_id=(\d+)/,
     );
-    if (!mAz || !mAnh) continue;
-    const k = azNormV2(mAz[1]);
-    cnt.set(k, (cnt.get(k) ?? 0) + 1);
+    const mGer = blob.match(
+      /Amtsgericht<\/td><td[^>]*><b>\s*(.+?)\s+in\s+[^<]+<\/b>/,
+    );
+    if (!mAz || !mAnh || !mGer) continue;
+    const k = courtKey(unescapeHtml(mGer[1])) + "|" + azNormV2(mAz[1]);
     map.set(k, { land: mAnh[1], file_id: mAnh[2], zvg_id: mAnh[3] });
   }
-  for (const [k, c] of cnt) if (c > 1) map.delete(k);
   return map;
 }
 
@@ -136,10 +156,21 @@ Deno.serve(async (req) => {
     for (const d of data as any[]) bek.add(d.zid);
     if (data.length < 1000) break;
   }
+  // Gericht je Akte (ag_company_id -> courtKey) für das Matching.
+  const compKey = new Map<number, string>();
+  for (const c of await loadAll("companies", "id,name,sector"))
+    if ((c as any).sector === "Amtsgericht" && (c as any).name)
+      compKey.set(
+        (c as any).id,
+        ("amtsgericht " + (c as any).name.replace(/^Amtsgericht\s+/i, ""))
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim(),
+      );
   const akten = (
     await loadAll(
       "zvg_akte",
-      "zid,az_norm,state_abbr,zvg_portal_id,termin,status",
+      "zid,az_norm,state_abbr,zvg_portal_id,ag_company_id,termin,status",
     )
   ).filter(
     (a: any) =>
@@ -187,7 +218,8 @@ Deno.serve(async (req) => {
     st.laender++;
     for (const a of rows) {
       if (st.geladen >= limit || Date.now() - t0 > budgetMs) break outer;
-      const hit = map.get(a.az_norm);
+      const ck = compKey.get(a.ag_company_id);
+      const hit = ck ? map.get(ck + "|" + a.az_norm) : null;
       if (!hit) {
         st.kein_link++;
         continue;
