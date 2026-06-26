@@ -69,9 +69,22 @@ function unescapeHtml(s: string): string {
     .trim();
 }
 
+// "Informationen zum Gläubiger: {…}" bis zum nächsten Feld-Marker.
+function extractGlaeubiger(text: string): string | null {
+  const i = text.indexOf("Informationen zum Gläubiger:");
+  if (i < 0) return null;
+  const rest = text.slice(i + "Informationen zum Gläubiger:".length);
+  const g = rest
+    .split(
+      /Gericht: Internetseite des Gerichtes|Hinweis: Die Wertgrenzen|GeoServer/,
+    )[0]
+    .trim();
+  return g || null;
+}
+
 function parseDetail(
   html: string,
-): { text: string; isTeilung: boolean } | null {
+): { text: string; isTeilung: boolean; glaeubiger: string | null } | null {
   const start = html.indexOf("letzte Aktualisierung:");
   if (start < 0) return null;
   const tr = html.lastIndexOf("<tr", start);
@@ -88,7 +101,11 @@ function parseDetail(
     .replace(/\s*\n\s*/g, "\n")
     .trim();
   if (!text) return null;
-  return { text, isTeilung: /aufhebung der gemeinschaft/i.test(text) };
+  return {
+    text,
+    isTeilung: /aufhebung der gemeinschaft/i.test(text),
+    glaeubiger: extractGlaeubiger(text),
+  };
 }
 
 async function get(url: string, referer?: string): Promise<string> {
@@ -222,6 +239,7 @@ Deno.serve(async (req) => {
           .update({
             portal_detail_text: d.text,
             is_teilung: d.isTeilung,
+            glaeubiger: d.glaeubiger,
             portal_detail_updated: r.last_updated,
           })
           .eq("zid", r.zid);

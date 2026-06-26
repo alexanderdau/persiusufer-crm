@@ -714,6 +714,18 @@ const ZvgAkteShowContent = () => {
         </CardContent>
       </Card>
 
+      {/* Gläubiger nur bei Forderungsversteigerungen (aus dem Detailtext erfasst) */}
+      {!record.is_teilung && record.glaeubiger ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Gläubiger</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm whitespace-pre-line">{record.glaeubiger}</p>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Separator />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -12,6 +12,7 @@ export type ZvgAkte = {
   az_jahr?: number | null;
   art?: string | null;
   is_teilung?: boolean | null;
+  glaeubiger?: string | null;
   ag_company_id?: Identifier | null;
   ag_name_raw?: string | null;
   termin?: string | null;
