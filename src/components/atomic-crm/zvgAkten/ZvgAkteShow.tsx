@@ -90,6 +90,18 @@ const ART_LABELS: Record<string, string> = {
   sonstiges: "Sonstiges",
 };
 
+const GLAEUBIGER_TYP_LABEL: Record<string, string> = {
+  bank: "Bank",
+  oeffentlich: "Öffentlich",
+  weg: "WEG",
+  versicherung: "Versicherung",
+  anwalt: "Anwalt",
+  insolvenz: "Insolvenz",
+  privat: "Privat",
+  unbekannt: "Unbekannt",
+  sonstige: "Sonstige",
+};
+
 // --- Format helpers ---------------------------------------------------------
 
 const formatEur = (value?: number | null) =>
@@ -714,14 +726,67 @@ const ZvgAkteShowContent = () => {
         </CardContent>
       </Card>
 
-      {/* Gläubiger nur bei Forderungsversteigerungen (aus dem Detailtext erfasst) */}
-      {!record.is_teilung && record.glaeubiger ? (
+      {/* Gläubiger nur bei Forderungsversteigerungen (aus Portal-Feld bzw. Bekanntmachung extrahiert) */}
+      {!record.is_teilung && (record.glaeubiger_name || record.glaeubiger) ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Gläubiger</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">Gläubiger</CardTitle>
+              {record.glaeubiger_typ &&
+              record.glaeubiger_typ !== "unbekannt" ? (
+                <Badge
+                  variant={
+                    record.glaeubiger_typ === "oeffentlich"
+                      ? "default"
+                      : "secondary"
+                  }
+                >
+                  {GLAEUBIGER_TYP_LABEL[record.glaeubiger_typ] ??
+                    record.glaeubiger_typ}
+                </Badge>
+              ) : null}
+            </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm whitespace-pre-line">{record.glaeubiger}</p>
+          <CardContent className="flex flex-col gap-3">
+            {record.glaeubiger_name ? (
+              <p className="text-base font-medium">{record.glaeubiger_name}</p>
+            ) : null}
+            {record.glaeubiger_typ === "oeffentlich" ? (
+              <p className="text-xs text-muted-foreground">
+                Öffentlicher Gläubiger — erscheint erfahrungsgemäß oft nicht zum
+                Termin; ein Gebot ohne Sicherheitsleistung kann dann möglich
+                sein (hängt von den im Termin Anwesenden ab, keine Garantie).
+              </p>
+            ) : null}
+            {record.glaeubiger_sachbearbeiter ||
+            record.glaeubiger_telefon ||
+            record.glaeubiger_az ||
+            record.glaeubiger_email ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {record.glaeubiger_sachbearbeiter ? (
+                  <Row label="Sachbearbeiter">
+                    {record.glaeubiger_sachbearbeiter}
+                  </Row>
+                ) : null}
+                {record.glaeubiger_telefon ? (
+                  <Row label="Telefon">{record.glaeubiger_telefon}</Row>
+                ) : null}
+                {record.glaeubiger_az ? (
+                  <Row label="Aktenzeichen">{record.glaeubiger_az}</Row>
+                ) : null}
+                {record.glaeubiger_email ? (
+                  <Row label="E-Mail">{record.glaeubiger_email}</Row>
+                ) : null}
+              </div>
+            ) : null}
+            {record.glaeubiger ? (
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer select-none">
+                  Rohtext
+                </summary>
+                <p className="mt-1 whitespace-pre-line">{record.glaeubiger}</p>
+              </details>
+            ) : null}
           </CardContent>
         </Card>
       ) : null}

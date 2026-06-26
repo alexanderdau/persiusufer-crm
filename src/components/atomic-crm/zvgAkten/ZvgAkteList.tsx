@@ -21,6 +21,7 @@ import {
   Mail,
   MailCheck,
   Map as MapIcon,
+  Landmark,
   MapPin,
   Percent,
   Scale,
@@ -1126,6 +1127,42 @@ const ZvgAkteListFilter = () => {
           size={isMobile ? "lg" : undefined}
         />
       </FilterCategory>
+
+      {/* Gläubiger-Typ nur relevant/sichtbar, wenn "Forderung" gewählt ist */}
+      {filterValues?.is_teilung === false ? (
+        <FilterCategory label="Gläubiger-Typ" icon={<Landmark />}>
+          <ToggleFilterButton
+            className="w-auto md:w-full justify-between h-10 md:h-8"
+            label="Öffentlich"
+            value={{ glaeubiger_typ: "oeffentlich" }}
+            size={isMobile ? "lg" : undefined}
+          />
+          <ToggleFilterButton
+            className="w-auto md:w-full justify-between h-10 md:h-8"
+            label="Bank"
+            value={{ glaeubiger_typ: "bank" }}
+            size={isMobile ? "lg" : undefined}
+          />
+          <ToggleFilterButton
+            className="w-auto md:w-full justify-between h-10 md:h-8"
+            label="Anwalt"
+            value={{ glaeubiger_typ: "anwalt" }}
+            size={isMobile ? "lg" : undefined}
+          />
+          <ToggleFilterButton
+            className="w-auto md:w-full justify-between h-10 md:h-8"
+            label="WEG"
+            value={{ glaeubiger_typ: "weg" }}
+            size={isMobile ? "lg" : undefined}
+          />
+          <ToggleFilterButton
+            className="w-auto md:w-full justify-between h-10 md:h-8"
+            label="Versicherung"
+            value={{ glaeubiger_typ: "versicherung" }}
+            size={isMobile ? "lg" : undefined}
+          />
+        </FilterCategory>
+      ) : null}
 
       <FilterCategory label="Status" icon={<TrendingUp />}>
         {ZVG_STATUSES.map((status) => (

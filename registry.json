@@ -42,6 +42,18 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/zvgAnfrage/index.ts",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAnfrage/ZvgAnfrageList.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/useViewMode.ts",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/zvgAkten/useFavoriten.ts",
           "type": "registry:component"
         },
@@ -54,11 +66,27 @@
           "type": "registry:component"
         },
         {
+          "path": "src/components/atomic-crm/zvgAkten/ZvgAkteMap.tsx",
+          "type": "registry:component"
+        },
+        {
           "path": "src/components/atomic-crm/zvgAkten/ZvgAkteList.tsx",
           "type": "registry:component"
         },
         {
           "path": "src/components/atomic-crm/zvgAkten/ZvgAkteEdit.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/StatusanfrageButton.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/GeringstesGebotButton.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/zvgAkten/BatchAnfrageButton.tsx",
           "type": "registry:component"
         },
         {
@@ -843,6 +871,10 @@
         },
         {
           "path": "src/components/atomic-crm/baugrundstuecke/BaugrundstueckList.tsx",
+          "type": "registry:component"
+        },
+        {
+          "path": "src/components/atomic-crm/admin/AdminPage.tsx",
           "type": "registry:component"
         },
         {

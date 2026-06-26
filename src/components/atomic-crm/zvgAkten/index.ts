@@ -13,6 +13,12 @@ export type ZvgAkte = {
   art?: string | null;
   is_teilung?: boolean | null;
   glaeubiger?: string | null;
+  glaeubiger_name?: string | null;
+  glaeubiger_typ?: string | null;
+  glaeubiger_sachbearbeiter?: string | null;
+  glaeubiger_telefon?: string | null;
+  glaeubiger_az?: string | null;
+  glaeubiger_email?: string | null;
   ag_company_id?: Identifier | null;
   ag_name_raw?: string | null;
   termin?: string | null;
