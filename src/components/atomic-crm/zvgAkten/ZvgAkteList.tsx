@@ -23,6 +23,7 @@ import {
   Map as MapIcon,
   MapPin,
   Percent,
+  Sparkles,
   TrendingUp,
 } from "lucide-react";
 import { addDays } from "date-fns";
@@ -1012,6 +1013,13 @@ const ZvgAkteListFilter = () => {
     d.setHours(23, 59, 59, 999);
     return d.toISOString();
   })();
+  // Gestern 00:00 (für "neu angelegt gestern")
+  const gesternStart = (() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 1);
+    d.setHours(0, 0, 0, 0);
+    return d.toISOString();
+  })();
   const heuteLabel = now.toLocaleDateString("de-DE", {
     weekday: "short",
     day: "2-digit",
@@ -1115,6 +1123,25 @@ const ZvgAkteListFilter = () => {
 
       <FilterCategory label="Verkehrswert" icon={<Coins />}>
         <VkwFilter />
+      </FilterCategory>
+
+      <FilterCategory label="Neu angelegt" icon={<Sparkles />}>
+        {/* Wann die Akte bei uns erstmals erfasst wurde (first_seen). */}
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Heute"
+          value={{ "first_seen@gte": heuteStart }}
+          size={isMobile ? "lg" : undefined}
+        />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Gestern"
+          value={{
+            "first_seen@gte": gesternStart,
+            "first_seen@lt": heuteStart,
+          }}
+          size={isMobile ? "lg" : undefined}
+        />
       </FilterCategory>
 
       <FilterCategory label="Termin" icon={<Clock />}>
