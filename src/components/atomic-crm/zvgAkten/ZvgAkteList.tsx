@@ -23,6 +23,7 @@ import {
   Map as MapIcon,
   MapPin,
   Percent,
+  Scale,
   Sparkles,
   TrendingUp,
 } from "lucide-react";
@@ -1106,6 +1107,22 @@ const ZvgAkteListFilter = () => {
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="UNIKA"
           value={{ "quellen@cs": "{zwangsversteigerung.de}" }}
+          size={isMobile ? "lg" : undefined}
+        />
+      </FilterCategory>
+
+      <FilterCategory label="Versteigerungsart" icon={<Scale />}>
+        {/* is_teilung: false = Forderungsversteigerung, true = Teilungsversteigerung */}
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Forderung"
+          value={{ is_teilung: false }}
+          size={isMobile ? "lg" : undefined}
+        />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Teilung"
+          value={{ is_teilung: true }}
           size={isMobile ? "lg" : undefined}
         />
       </FilterCategory>
