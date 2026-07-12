@@ -483,12 +483,17 @@ Deno.serve(async (req) => {
   // diesen Lauf nicht im Listing → aufgehoben. Portal-Akten bleiben unberührt.
   if (scannedStates.length) {
     const cutoff = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
+    // Nur ECHTE zvg.com-Akten dürfen "aus zvg.com verschwunden" werden.
+    // quellen @> {zvg.com} schließt versteigerungspool (vp…) und portal-only
+    // (zvg-portal.de) aus; not-like-p% schützt zusätzlich portal-primäre
+    // (zid p…) Akten, die auch auf zvg.com liegen aber via Portal bestehen.
     const { data: cand } = await supabase
       .from("zvg_akte")
       .select("zid")
       .eq("status", "neu")
       .lt("last_seen", cutoff)
       .in("state_abbr", scannedStates)
+      .contains("quellen", ["zvg.com"])
       .not("zid", "like", "p%");
     const gone = (cand ?? [])
       .map((r: any) => r.zid)
