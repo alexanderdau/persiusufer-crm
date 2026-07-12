@@ -28,6 +28,19 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41],
 });
 
+// Ungenaue Position (kein präziser Objekt-Treffer → Amtsgericht-Standort/Ort/
+// Region): grau-„gefleckter", halbtransparenter Marker — sichtbar, dass wir
+// keine echte Objektposition haben.
+const approxIcon = L.divIcon({
+  className: "",
+  html: `<div style="width:18px;height:18px;border-radius:50%;background:repeating-linear-gradient(45deg,#9ca3af,#9ca3af 3px,#e5e7eb 3px,#e5e7eb 6px);border:2px solid #6b7280;opacity:0.9;box-shadow:0 0 0 2px rgba(255,255,255,0.75)"></div>`,
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -9],
+});
+const APPROX_PRECISION = new Set(["amtsgericht", "region", "city", "none"]);
+const isApproxPos = (p?: string | null) => !p || APPROX_PRECISION.has(p);
+
 const formatEur = (value?: number | null): string => {
   if (value == null) return "—";
   const n = Number(value);
@@ -145,7 +158,7 @@ export const ZvgAkteMap = () => {
     let q = sb
       .from("zvg_akte")
       .select(
-        "zid, az, ag_name_raw, objektart, objekt_strasse, objekt_plz, objekt_ort, objekt_lat, objekt_lon, termin, vkw_eur, status, letzte_anfrage_status",
+        "zid, az, ag_name_raw, objektart, objekt_strasse, objekt_plz, objekt_ort, objekt_lat, objekt_lon, termin, vkw_eur, status, letzte_anfrage_status, geocoding_precision",
         { count: "exact" },
       )
       .not("objekt_lat", "is", null)
@@ -242,14 +255,27 @@ export const ZvgAkteMap = () => {
           const lat = Number(a.objekt_lat);
           const lon = Number(a.objekt_lon);
           if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+          const approx = isApproxPos(a.geocoding_precision);
           return (
-            <Marker key={a.zid} position={[lat, lon]} icon={defaultIcon}>
+            <Marker
+              key={a.zid}
+              position={[lat, lon]}
+              icon={approx ? approxIcon : defaultIcon}
+            >
               <Popup>
                 <div className="text-sm">
                   <div className="font-semibold">{a.az}</div>
                   <div className="text-muted-foreground text-xs mb-1">
                     {a.ag_name_raw}
                   </div>
+                  {approx ? (
+                    <div className="text-xs text-amber-600 mb-1">
+                      ⚠ Position ungenau
+                      {a.geocoding_precision === "amtsgericht"
+                        ? " — Amtsgericht-Standort"
+                        : ""}
+                    </div>
+                  ) : null}
                   <div className="mb-1">{a.objektart}</div>
                   <div className="text-xs text-muted-foreground mb-1">
                     {a.objekt_strasse} · {a.objekt_plz} {a.objekt_ort}

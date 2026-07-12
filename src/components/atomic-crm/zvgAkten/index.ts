@@ -85,6 +85,7 @@ export type ZvgAkte = {
 
 export const ZVG_STATUSES = [
   { value: "neu", label: "Neu" },
+  { value: "vergangen", label: "Vergangen" },
   { value: "triagiert", label: "Triagiert" },
   { value: "phase1", label: "Phase 1 (Triage)" },
   { value: "phase2", label: "Phase 2 (Standortdossier)" },
@@ -105,5 +106,11 @@ export default {
   edit: ZvgAkteEdit,
   icon: Gavel,
   recordRepresentation: (record: ZvgAkte) =>
-    record ? `${record.az} · ${record.obj_titel ?? ""}`.trim() : "",
+    record
+      ? `${record.az} · ${
+          record.obj_titel ||
+          [record.objektart, record.objekt_ort].filter(Boolean).join(", ") ||
+          ""
+        }`.trim()
+      : "",
 };

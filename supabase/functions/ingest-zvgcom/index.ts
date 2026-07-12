@@ -226,8 +226,8 @@ function toRowBasic(a: any, agLookup: Map<string, number>, stateAbbr: string) {
 }
 
 // Detail-Fetch: getJSON/getGerichtID/getPDF/getPic/getGalleryPics → Felder + Storage.
-async function enrichDetails(row: any) {
-  const zid = row.zid;
+async function enrichDetails(row: any, storageZid: string = row.zid) {
+  const zid = row.zid; // native zvg.com-id für die API-Calls
   const j = await getJson(`${DETAIL}?act=getJSON&id=${zid}`);
   const g = await getJson(`${DETAIL}?act=getGerichtID&id=${zid}`);
   const p = await getJson(`${DETAIL}?act=getPDF&id=${zid}`);
@@ -266,7 +266,7 @@ async function enrichDetails(row: any) {
       const saved = await downloadUpload(
         p[src],
         DOCUMENTS_BUCKET,
-        `${zid}/${fname}`,
+        `${storageZid}/${fname}`,
         "application/pdf",
       );
       if (saved) {
@@ -279,7 +279,7 @@ async function enrichDetails(row: any) {
     const saved = await downloadUpload(
       row.gutachten_url,
       DOCUMENTS_BUCKET,
-      `${zid}/gutachten.pdf`,
+      `${storageZid}/gutachten.pdf`,
       "application/pdf",
     );
     if (saved)
@@ -294,7 +294,7 @@ async function enrichDetails(row: any) {
     const saved = await downloadUpload(
       pic.path,
       BILDER_BUCKET,
-      `${zid}/cover.jpg`,
+      `${storageZid}/cover.jpg`,
       "image/jpeg",
     );
     if (saved) row.cover_bild_path = saved;
@@ -305,7 +305,7 @@ async function enrichDetails(row: any) {
       const saved = await downloadUpload(
         gal.data[i],
         BILDER_BUCKET,
-        `${zid}/gallery_${i + 1}.jpg`,
+        `${storageZid}/gallery_${i + 1}.jpg`,
         "image/jpeg",
       );
       if (saved) paths.push(saved);
@@ -369,6 +369,7 @@ Deno.serve(async (req) => {
     inserted: 0,
     updated: 0,
     enriched: 0,
+    match_enriched: 0,
     aufgehoben: 0,
     unknown_ag: 0,
     disappeared: 0,
@@ -423,6 +424,37 @@ Deno.serve(async (req) => {
           // zvg.com als Quelle eintragen (self-heal: ergänzt gemergte p-zid-Akten)
           await upsertQuelle(existingZid, newZid);
           if (row._termin_aufgehoben) aufgehobenExisting.push(existingZid);
+          // zvg.com-Dokumente (Exposé/Gutachten/…) auch bei Match anhängen —
+          // einmalig, wenn die Akte noch keine zvg.com-Docs hat (Storage unter
+          // der bestehenden zid). Schließt das Loch bei portal-primären Matches.
+          if (Date.now() - t0 < budgetMs) {
+            const { data: hasDoc } = await supabase
+              .from("zvg_akte_dokumente")
+              .select("zid")
+              .eq("zid", existingZid)
+              .eq("source", "zvg.com")
+              .limit(1);
+            if (!hasDoc || hasDoc.length === 0) {
+              try {
+                await enrichDetails(row, existingZid);
+                for (const d of row._docs ?? [])
+                  await upsertDokument(
+                    existingZid,
+                    d.art,
+                    d.titel,
+                    d.storage_path,
+                    d.reihenfolge,
+                  );
+                await supabase
+                  .from("zvg_akte")
+                  .update({ detail_fetched_at: row.detail_fetched_at })
+                  .eq("zid", existingZid);
+                stats.match_enriched++;
+              } catch (_) {
+                stats.errors++;
+              }
+            }
+          }
         } else {
           // NEU: Details holen (budgetabhängig), dann inserten.
           if (Date.now() - t0 < budgetMs) {

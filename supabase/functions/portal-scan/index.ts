@@ -270,8 +270,10 @@ Deno.serve(async (req) => {
     upd_detail: 0,
     skipped_unresolved: 0,
     errors: 0,
+    last_seen_refreshed: 0,
   };
   const toInsert: any[] = [];
+  const seen = new Set<string>(); // alle im Listing gesehenen (auch unveränderte) -> last_seen
 
   outer: for (const [state, land] of Object.entries(STATE_TO_LAND)) {
     let entries: any[];
@@ -289,6 +291,7 @@ Deno.serve(async (req) => {
       // 1) zvg_portal_id-Direkttreffer
       const pidHit = byPid.get(e.zvg_portal_id);
       let target = pidHit ?? (existing.length === 1 ? existing[0] : null);
+      if (target) seen.add(target.zid);
 
       if (!target) {
         // 3) neu/mehrdeutig -> Gericht direkt aus dem Listing (e.gericht)
@@ -307,6 +310,7 @@ Deno.serve(async (req) => {
         const atCourt = existing.find((a: any) => a.ag_company_id === comp.id);
         if (atCourt) {
           target = atCourt;
+          seen.add(atCourt.zid);
           st.upd_detail++;
         } else {
           // einfügen
@@ -353,6 +357,19 @@ Deno.serve(async (req) => {
     for (let i = 0; i < toInsert.length; i += 50) {
       await supabase.from("zvg_akte").insert(toInsert.slice(i, i + 50));
     }
+  }
+  // last_seen für ALLE gesehenen Akten auffrischen (auch unveränderte) —
+  // sonst veraltet das Feld, obwohl der Termin live auf dem Portal ist.
+  if (!dry && seen.size) {
+    const ids = [...seen];
+    const now = new Date().toISOString();
+    for (let i = 0; i < ids.length; i += 200) {
+      await supabase
+        .from("zvg_akte")
+        .update({ last_seen: now })
+        .in("zid", ids.slice(i, i + 200));
+    }
+    st.last_seen_refreshed = ids.length;
   }
   return new Response(
     JSON.stringify({ dry, ...st, would_insert: toInsert.length }, null, 2),

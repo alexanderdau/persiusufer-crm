@@ -6,13 +6,31 @@ const UA = "persiusufer-crm/1.0";
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
 
 // Deutschland-Bounding-Box (mit kleinem Puffer)
-const DE_LAT_MIN = 47.2;
-const DE_LAT_MAX = 55.1;
-const DE_LON_MIN = 5.8;
-const DE_LON_MAX = 15.1;
+const DE_LAT_MIN = 47.2,
+  DE_LAT_MAX = 55.1,
+  DE_LON_MIN = 5.8,
+  DE_LON_MAX = 15.1;
+const THROTTLE_MS = 1100; // Nominatim: max 1 req/s
 
-// Nominatim Usage-Policy: max. 1 Anfrage/Sekunde.
-const THROTTLE_MS = 1100;
+// state_abbr -> Bundesland-Name (für Query + Ergebnis-Validierung)
+const LAND: Record<string, string> = {
+  BW: "Baden-Württemberg",
+  BY: "Bayern",
+  BE: "Berlin",
+  BB: "Brandenburg",
+  HB: "Bremen",
+  HH: "Hamburg",
+  HE: "Hessen",
+  MV: "Mecklenburg-Vorpommern",
+  NI: "Niedersachsen",
+  NW: "Nordrhein-Westfalen",
+  RP: "Rheinland-Pfalz",
+  SL: "Saarland",
+  SN: "Sachsen",
+  ST: "Sachsen-Anhalt",
+  SH: "Schleswig-Holstein",
+  TH: "Thüringen",
+};
 
 function insideDe(lat: number, lon: number): boolean {
   return (
@@ -22,7 +40,6 @@ function insideDe(lat: number, lon: number): boolean {
     lon <= DE_LON_MAX
   );
 }
-
 function precisionFromRank(rank: number, type: string): string {
   if (rank >= 30 || type === "house" || type === "building") return "house";
   if (rank >= 26 || type === "residential" || type === "highway")
@@ -32,14 +49,26 @@ function precisionFromRank(rank: number, type: string): string {
     return "city";
   return "region";
 }
+const validPlz = (p: any) =>
+  typeof p === "string" && /^\d{5}$/.test(p.trim()) && p.trim() !== "00000";
+// Bundesland-Namen locker vergleichen (Sonderzeichen/Groß-Klein egal)
+const landEq = (a?: string | null, b?: string | null) =>
+  !!a &&
+  !!b &&
+  a.toLowerCase().replace(/[^a-zäöüß]/g, "") ===
+    b.toLowerCase().replace(/[^a-zäöüß]/g, "");
 
-type GeoResult = { lat: number; lon: number; precision: string };
-// "error" = transienter Fehler (HTTP 429/5xx, Netzwerk, Parse) → NICHT als no-match werten.
-// null     = Nominatim hat geantwortet, aber kein brauchbarer Treffer = echtes no-match.
+type GeoResult = {
+  lat: number;
+  lon: number;
+  precision: string;
+  state: string | null;
+  postcode: string | null;
+};
 type GeoOutcome = GeoResult | null | "error";
 
 async function geocodeOne(query: string): Promise<GeoOutcome> {
-  const url = `${NOMINATIM}?q=${encodeURIComponent(query)}&format=json&limit=3&countrycodes=de&addressdetails=1&viewbox=${DE_LON_MIN},${DE_LAT_MAX},${DE_LON_MAX},${DE_LAT_MIN}&bounded=1`;
+  const url = `${NOMINATIM}?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=de&addressdetails=1&viewbox=${DE_LON_MIN},${DE_LAT_MAX},${DE_LON_MAX},${DE_LAT_MIN}&bounded=1`;
   try {
     const r = await fetch(url, {
       headers: { "User-Agent": UA, "Accept-Language": "de" },
@@ -48,21 +77,33 @@ async function geocodeOne(query: string): Promise<GeoOutcome> {
     const arr = await r.json();
     if (!Array.isArray(arr)) return "error";
     for (const hit of arr) {
-      const lat = parseFloat(hit.lat);
-      const lon = parseFloat(hit.lon);
+      const lat = parseFloat(hit.lat),
+        lon = parseFloat(hit.lon);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-      // Doppel-Sicherheit: Land muss DE sein, und Coords müssen innerhalb DE-Box liegen
       const land = (hit.address?.country_code ?? "").toLowerCase();
       if (land && land !== "de") continue;
       if (!insideDe(lat, lon)) continue;
       const rank = parseInt(hit.place_rank ?? "0") || 0;
       const type = (hit.type ?? hit.class ?? "").toString();
-      return { lat, lon, precision: precisionFromRank(rank, type) };
+      return {
+        lat,
+        lon,
+        precision: precisionFromRank(rank, type),
+        state: hit.address?.state ?? null,
+        postcode: hit.address?.postcode ?? null,
+      };
     }
     return null;
   } catch {
     return "error";
   }
+}
+
+// Echten Ort aus objekt_ort ziehen (auch aus "Straße, 00000 Ort" / "Ort, Ortsteil").
+function ortAusFeld(objekt_ort: string): string {
+  const m = objekt_ort.match(/\d{5}\s+(.+)$/); // Teil nach PLZ = Ort
+  if (m) return m[1].trim();
+  return objekt_ort.split(",")[0].trim();
 }
 
 Deno.serve(async (req) => {
@@ -71,13 +112,15 @@ Deno.serve(async (req) => {
     return new Response("forbidden", { status: 403 });
   const batch = parseInt(url.searchParams.get("batch") ?? "30");
   const sb = createClient(
-    Deno.env.get("SUPABASE_URL"),
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
   const { data: kandidaten } = await sb
     .from("zvg_akte")
-    .select("zid, objekt_strasse, objekt_hausnummer, objekt_plz, objekt_ort")
+    .select(
+      "zid, objekt_strasse, objekt_hausnummer, objekt_plz, objekt_ort, state_abbr, ag_company_id",
+    )
     .is("objekt_lat", null)
     .not("objekt_ort", "is", null)
     .limit(batch);
@@ -85,6 +128,8 @@ Deno.serve(async (req) => {
   const stats = {
     processed: 0,
     geocoded: 0,
+    amtsgericht_fallback: 0,
+    plz_ergaenzt: 0,
     no_match: 0,
     errors: 0,
     by_precision: {} as Record<string, number>,
@@ -94,69 +139,99 @@ Deno.serve(async (req) => {
       headers: { "Content-Type": "application/json" },
     });
 
+  // Gerichts-Koordinaten für den Fallback laden.
+  const compIds = [
+    ...new Set(kandidaten.map((a: any) => a.ag_company_id).filter(Boolean)),
+  ];
+  const courtGeo = new Map<number, { lat: number; lon: number }>();
+  if (compIds.length) {
+    const { data: comps } = await sb
+      .from("companies")
+      .select("id, lat, lon")
+      .in("id", compIds);
+    for (const c of comps ?? [])
+      if (c.lat != null && c.lon != null)
+        courtGeo.set(c.id, { lat: c.lat, lon: c.lon });
+  }
+
   for (const a of kandidaten) {
     stats.processed++;
+    const land = LAND[a.state_abbr] ?? "";
     const strasse = a.objekt_strasse ?? "";
     const hnr = a.objekt_hausnummer ?? "";
     const strasseMitHnr = hnr && strasse ? `${strasse} ${hnr}` : strasse;
-    // 'Ort, Ortsteil' — Komma + Ortsteil können Nominatim verwirren → nur Hauptort.
-    const ort = (a.objekt_ort ?? "").split(",")[0].trim();
+    const ort = a.objekt_ort ? ortAusFeld(a.objekt_ort) : "";
+    const plz = validPlz(a.objekt_plz) ? a.objekt_plz.trim() : "";
+    const suffix = land ? `, ${land}, Deutschland` : ", Deutschland";
     const queries = [
-      strasseMitHnr && a.objekt_plz && ort
-        ? `${strasseMitHnr}, ${a.objekt_plz} ${ort}, Deutschland`
+      strasseMitHnr && plz && ort
+        ? `${strasseMitHnr}, ${plz} ${ort}${suffix}`
         : null,
-      strasse && a.objekt_plz && ort
-        ? `${strasse}, ${a.objekt_plz} ${ort}, Deutschland`
-        : null,
-      a.objekt_plz && ort ? `${a.objekt_plz} ${ort}, Deutschland` : null,
-      ort ? `${ort}, Deutschland` : null,
+      strasse && plz && ort ? `${strasse}, ${plz} ${ort}${suffix}` : null,
+      strasseMitHnr && ort ? `${strasseMitHnr}, ${ort}${suffix}` : null,
+      plz && ort ? `${plz} ${ort}${suffix}` : null,
+      ort ? `${ort}${suffix}` : null,
     ].filter(Boolean) as string[];
 
     let result: GeoResult | null = null;
     let hadError = false;
     for (const q of queries) {
       const outcome = await geocodeOne(q);
-      // Immer drosseln, AUCH nach einem Treffer — sonst < 1 req/s zur nächsten Akte (→ 429-Welle).
       await new Promise((r) => setTimeout(r, THROTTLE_MS));
       if (outcome === "error") {
         hadError = true;
         break;
       }
-      if (outcome) {
-        result = outcome;
-        if (outcome.precision !== "region") break; // präzise genug
-      }
-      // outcome === null → nächsten Fallback versuchen
+      if (!outcome) continue;
+      // BUNDESLAND-ZWANG: Treffer außerhalb des Gerichts-Bundeslands verwerfen.
+      if (land && outcome.state && !landEq(outcome.state, land)) continue;
+      result = outcome;
+      if (outcome.precision !== "region" && outcome.precision !== "city") break; // präzise genug
     }
 
     if (result) {
-      await sb
-        .from("zvg_akte")
-        .update({
-          objekt_lat: result.lat,
-          objekt_lon: result.lon,
-          geocoding_precision: result.precision,
-          geocoding_at: new Date().toISOString(),
-        })
-        .eq("zid", a.zid);
+      const patch: any = {
+        objekt_lat: result.lat,
+        objekt_lon: result.lon,
+        geocoding_precision: result.precision,
+        geocoding_at: new Date().toISOString(),
+      };
+      if (!validPlz(a.objekt_plz) && validPlz(result.postcode)) {
+        patch.objekt_plz = result.postcode;
+        stats.plz_ergaenzt++;
+      }
+      await sb.from("zvg_akte").update(patch).eq("zid", a.zid);
       stats.geocoded++;
       stats.by_precision[result.precision] =
         (stats.by_precision[result.precision] || 0) + 1;
     } else if (hadError) {
-      // Transienter Fehler: NICHTS schreiben → objekt_lat bleibt NULL → nächster Lauf versucht erneut.
-      stats.errors++;
+      stats.errors++; // transient -> objekt_lat bleibt NULL -> nächster Lauf
     } else {
-      // Echtes no-match (Nominatim hat geantwortet, kein Treffer).
-      await sb
-        .from("zvg_akte")
-        .update({
-          objekt_lat: -1,
-          objekt_lon: -1,
-          geocoding_precision: "none",
-          geocoding_at: new Date().toISOString(),
-        })
-        .eq("zid", a.zid);
-      stats.no_match++;
+      // Kein valider Treffer im Bundesland -> Fallback: Amtsgericht-Standort, sichtbar geflaggt.
+      const cg = courtGeo.get(a.ag_company_id);
+      if (cg) {
+        await sb
+          .from("zvg_akte")
+          .update({
+            objekt_lat: cg.lat,
+            objekt_lon: cg.lon,
+            geocoding_precision: "amtsgericht",
+            geocoding_at: new Date().toISOString(),
+          })
+          .eq("zid", a.zid);
+        stats.amtsgericht_fallback++;
+      } else {
+        await sb
+          .from("zvg_akte")
+          .update({
+            objekt_lat: -1,
+            objekt_lon: -1,
+            geocoding_precision: "none",
+            geocoding_at: new Date().toISOString(),
+          })
+          .eq("zid", a.zid);
+        stats.no_match++;
+      }
     }
   }
 
