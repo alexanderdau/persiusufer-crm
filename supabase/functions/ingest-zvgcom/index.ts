@@ -445,9 +445,15 @@ Deno.serve(async (req) => {
                     d.storage_path,
                     d.reihenfolge,
                   );
+                const imgPatch: any = {
+                  detail_fetched_at: row.detail_fetched_at,
+                };
+                if (row.cover_bild_path)
+                  imgPatch.cover_bild_path = row.cover_bild_path;
+                if (row.bilder_paths) imgPatch.bilder_paths = row.bilder_paths;
                 await supabase
                   .from("zvg_akte")
-                  .update({ detail_fetched_at: row.detail_fetched_at })
+                  .update(imgPatch)
                   .eq("zid", existingZid);
                 stats.match_enriched++;
               } catch (_) {
