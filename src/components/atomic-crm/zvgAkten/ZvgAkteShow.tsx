@@ -16,6 +16,7 @@ import {
   Heart,
   Loader2,
   MapPin,
+  Pencil,
   Sparkles,
 } from "lucide-react";
 
@@ -747,6 +748,12 @@ const ZvgAkteShowContent = () => {
       />
 
       <div className="flex flex-row gap-2 flex-wrap">
+        <Button asChild variant="default" size="sm">
+          <a href={`#/zvg_akte/${record.zid}/edit`}>
+            <Pencil className="size-4" />
+            Bearbeiten
+          </a>
+        </Button>
         <Button asChild variant="outline" size="sm">
           <a href={zvgUrl} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="size-4" />

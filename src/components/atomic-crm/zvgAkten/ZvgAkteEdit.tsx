@@ -1,6 +1,7 @@
 import { useWatch } from "react-hook-form";
 import { useRecordContext } from "ra-core";
 
+import { BooleanInput } from "@/components/admin/boolean-input";
 import { Edit } from "@/components/admin/edit";
 import { NumberInput } from "@/components/admin/number-input";
 import { ReferenceInput } from "@/components/admin/reference-input";
@@ -78,34 +79,51 @@ const AgFilteredRechtspflegerInput = () => {
     <ReferenceInput
       source="rechtspfleger_contact_id"
       reference="contacts"
-      filter={
-        record?.ag_company_id ? { company_id: record.ag_company_id } : {}
-      }
+      filter={record?.ag_company_id ? { company_id: record.ag_company_id } : {}}
     />
   );
 };
 
 const SachverstaendigerInput = () => (
-  <ReferenceInput
-    source="sachverstaendiger_contact_id"
-    reference="contacts"
-  />
+  <ReferenceInput source="sachverstaendiger_contact_id" reference="contacts" />
 );
 
+// Bei angehakter Neu-Geocodierung Position zurücksetzen -> geocode-akten-Cron
+// verortet die (korrigierte) Adresse neu. _regeocode ist kein DB-Feld.
+const transformAkte = (data: any) => {
+  if (data._regeocode) {
+    data.objekt_lat = null;
+    data.objekt_lon = null;
+    data.geocoding_precision = null;
+  }
+  delete data._regeocode;
+  return data;
+};
+
 const ZvgAkteEdit = () => (
-  <Edit redirect="show">
+  <Edit redirect="show" transform={transformAkte}>
     <SimpleForm className="max-w-2xl">
       <ReadOnlyInfo />
+      <TextInput source="objekt_strasse" label="Straße" helperText={false} />
+      <TextInput
+        source="objekt_hausnummer"
+        label="Hausnummer"
+        helperText={false}
+      />
+      <TextInput source="objekt_plz" label="PLZ" helperText={false} />
+      <TextInput source="objekt_ort" label="Ort" helperText={false} />
+      <TextInput source="objekt_ortsteil" label="Ortsteil" helperText={false} />
+      <BooleanInput
+        source="_regeocode"
+        label="Nach Speichern Position neu ermitteln"
+        helperText="Bei Adress-Korrektur ankreuzen — die Karten-Position wird neu berechnet."
+      />
       <TextInput
         source="gemarkung"
         label="Gemarkung"
         helperText="ALKIS-Katasterbezirk — Grundlage für spätere Geo-Ermittlung"
       />
-      <TextInput
-        source="flur"
-        label="Flur"
-        helperText={false}
-      />
+      <TextInput source="flur" label="Flur" helperText={false} />
       <TextInput
         source="flurstueck"
         label="Flurstück"
