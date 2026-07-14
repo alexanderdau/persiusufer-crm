@@ -43,6 +43,14 @@ export type ZvgAkte = {
   stop_reason?: string | null;
   bietreichweite_eur?: number | null;
   wertgrenzen_weggefallen?: boolean | null;
+  nutzungsstatus?: string | null;
+  baujahr?: number | null;
+  wohnflaeche_qm?: number | null;
+  grundstuecksflaeche_qm?: number | null;
+  innenbesichtigung?: boolean | null;
+  einheiten_anzahl?: number | null;
+  objektdaten_ki_am?: string | null;
+  objektdaten_ki_notiz?: string | null;
   geringstes_gebot_eur?: number | null;
   geringstes_gebot_rang_betreibend?: number | null;
   geringstes_gebot_quelle?: string | null;

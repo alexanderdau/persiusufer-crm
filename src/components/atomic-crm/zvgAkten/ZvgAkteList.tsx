@@ -21,6 +21,7 @@ import {
   Mail,
   MailCheck,
   Map as MapIcon,
+  Home,
   Landmark,
   MapPin,
   Percent,
@@ -1260,6 +1261,28 @@ const ZvgAkteListFilter = () => {
           className="w-auto md:w-full justify-between h-10 md:h-8"
           label="Weggefallen (5/10 & 7/10)"
           value={{ wertgrenzen_weggefallen: true }}
+          size={isMobile ? "lg" : undefined}
+        />
+      </FilterCategory>
+
+      <FilterCategory label="Nutzung (KI)" icon={<Home />}>
+        {/* Nutzungsstatus aus der KI-Objektdatenanalyse (extract-objektdaten). */}
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Leerstehend"
+          value={{ nutzungsstatus: "leerstehend" }}
+          size={isMobile ? "lg" : undefined}
+        />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Vermietet"
+          value={{ nutzungsstatus: "vermietet" }}
+          size={isMobile ? "lg" : undefined}
+        />
+        <ToggleFilterButton
+          className="w-auto md:w-full justify-between h-10 md:h-8"
+          label="Teilw. vermietet"
+          value={{ nutzungsstatus: "teilweise_vermietet" }}
           size={isMobile ? "lg" : undefined}
         />
       </FilterCategory>

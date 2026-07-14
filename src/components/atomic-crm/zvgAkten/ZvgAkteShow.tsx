@@ -16,6 +16,7 @@ import {
   Heart,
   Loader2,
   MapPin,
+  Sparkles,
 } from "lucide-react";
 
 import { ReferenceField } from "@/components/admin/reference-field";
@@ -100,6 +101,15 @@ const GLAEUBIGER_TYP_LABEL: Record<string, string> = {
   privat: "Privat",
   unbekannt: "Unbekannt",
   sonstige: "Sonstige",
+};
+
+const NUTZUNGSSTATUS_LABEL: Record<string, string> = {
+  vermietet: "Vermietet",
+  teilweise_vermietet: "Teilw. vermietet",
+  leerstehend: "Leerstehend",
+  eigengenutzt: "Eigengenutzt",
+  gemischt: "Gemischt",
+  unbekannt: "Unbekannt",
 };
 
 // --- Format helpers ---------------------------------------------------------
@@ -828,6 +838,72 @@ const ZvgAkteShowContent = () => {
       ) : null}
 
       <Separator />
+
+      {record.objektdaten_ki_am ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-violet-500" />
+              <CardTitle className="text-base">Objektdaten (KI)</CardTitle>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Aus den Dokumenten per KI extrahiert — bitte prüfen.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <Row label="Nutzung">
+                {record.nutzungsstatus &&
+                record.nutzungsstatus !== "unbekannt" ? (
+                  <Badge
+                    variant={
+                      record.nutzungsstatus === "leerstehend"
+                        ? "default"
+                        : "secondary"
+                    }
+                    className={
+                      record.nutzungsstatus === "leerstehend"
+                        ? "border-transparent bg-amber-500 text-white hover:bg-amber-500"
+                        : record.nutzungsstatus === "vermietet"
+                          ? "border-transparent bg-emerald-600 text-white hover:bg-emerald-600"
+                          : ""
+                    }
+                  >
+                    {NUTZUNGSSTATUS_LABEL[record.nutzungsstatus] ??
+                      record.nutzungsstatus}
+                  </Badge>
+                ) : (
+                  "—"
+                )}
+              </Row>
+              <Row label="Baujahr">{record.baujahr ?? "—"}</Row>
+              <Row label="Wohnfläche">
+                {record.wohnflaeche_qm != null
+                  ? `${record.wohnflaeche_qm} m²`
+                  : "—"}
+              </Row>
+              <Row label="Grundstück">
+                {record.grundstuecksflaeche_qm != null
+                  ? `${record.grundstuecksflaeche_qm} m²`
+                  : "—"}
+              </Row>
+              <Row label="Einheiten">{record.einheiten_anzahl ?? "—"}</Row>
+              <Row label="Innenbesichtigung">
+                {record.innenbesichtigung == null
+                  ? "—"
+                  : record.innenbesichtigung
+                    ? "ja"
+                    : "nein"}
+              </Row>
+            </div>
+            {record.objektdaten_ki_notiz ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                {record.objektdaten_ki_notiz}
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
