@@ -725,6 +725,11 @@ const ZvgAkteShowContent = () => {
                 {record.objektart.trim()}
               </Badge>
             ) : null}
+            {record.wertgrenzen_weggefallen ? (
+              <Badge className="border-transparent bg-amber-500 font-semibold text-white hover:bg-amber-500">
+                Wertgrenzen weggefallen
+              </Badge>
+            ) : null}
           </div>
           {record.obj_titel ? (
             <p className="text-base text-foreground">{record.obj_titel}</p>
