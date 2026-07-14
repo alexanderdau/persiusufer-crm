@@ -113,6 +113,42 @@ const formatEur = (value?: number | null) =>
         maximumFractionDigits: 0,
       }).format(Number(value));
 
+// Wertgrenzen: 5/10 und 7/10 des Verkehrswerts (§§ 85a, 74a ZVG). Sind sie
+// weggefallen (Zuschlag im 1. Termin versagt), gelten sie nicht mehr — dann
+// kann auch darunter zugeschlagen werden (Chance).
+const WertgrenzenAnzeige = ({
+  vkw,
+  weggefallen,
+}: {
+  vkw?: number | null;
+  weggefallen?: boolean | null;
+}) => {
+  if (vkw == null) return <>—</>;
+  const w5 = Math.round(Number(vkw) * 0.5);
+  const w7 = Math.round(Number(vkw) * 0.7);
+  return (
+    <div className="flex flex-col gap-1">
+      {weggefallen ? (
+        <Badge className="self-start border-transparent bg-amber-500 text-white hover:bg-amber-500">
+          weggefallen — kein Mindestgebot
+        </Badge>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span
+          className={weggefallen ? "text-muted-foreground line-through" : ""}
+        >
+          5/10 {formatEur(w5)}
+        </span>
+        <span
+          className={weggefallen ? "text-muted-foreground line-through" : ""}
+        >
+          7/10 {formatEur(w7)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const formatDateTime = (value?: string | null) => {
   if (!value) return "—";
   const d = new Date(value);
@@ -868,6 +904,12 @@ const ZvgAkteShowContent = () => {
             </Row>
             <Row label="Termin">{formatDateTime(record.termin)}</Row>
             <Row label="Verkehrswert">{formatEur(record.vkw_eur)}</Row>
+            <Row label="Wertgrenzen">
+              <WertgrenzenAnzeige
+                vkw={record.vkw_eur}
+                weggefallen={record.wertgrenzen_weggefallen}
+              />
+            </Row>
             <Row label="Gutachten-Preis">
               {record.gpreis_eur === 0
                 ? "kostenlos"

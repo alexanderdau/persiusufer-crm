@@ -42,6 +42,7 @@ export type ZvgAkte = {
   triage_note?: string | null;
   stop_reason?: string | null;
   bietreichweite_eur?: number | null;
+  wertgrenzen_weggefallen?: boolean | null;
   geringstes_gebot_eur?: number | null;
   geringstes_gebot_rang_betreibend?: number | null;
   geringstes_gebot_quelle?: string | null;
